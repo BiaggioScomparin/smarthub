@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hub Omnichannel - Mercado Livre, Shopee & TikTok Shop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/80 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+          <i class="fa-solid fa-boxes-packing text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-white leading-tight">Hub Omnichannel</h1>
+          <p class="text-xs text-slate-400">ML • Shopee • TikTok Shop</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-2 bg-slate-900/60 p-1 rounded-xl border border-slate-700/60 text-sm">
+        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="nav-tab px-3 py-1.5 rounded-lg font-medium transition active-tab">
+          <i class="fa-solid fa-chart-line mr-1.5"></i> Visão Geral
+        </button>
+        <button onclick="switchTab('catalog')" id="tab-btn-catalog" class="nav-tab px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-tags mr-1.5"></i> Catálogo & Publicação
+        </button>
+        <button onclick="switchTab('shipping')" id="tab-btn-shipping" class="nav-tab px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition relative">
+          <i class="fa-solid fa-truck-fast mr-1.5"></i> Central de Envio
+          <span id="shipping-badge" class="ml-1 px-1.5 py-0.2 text-xs bg-amber-500 text-slate-950 font-bold rounded-full hidden">0</span>
+        </button>
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="nav-tab px-3 py-1.5 rounded-lg font-medium text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-plug-circle-bolt mr-1.5"></i> Conexões API
+        </button>
+      </nav>
+
+      <!-- Quick Action: Simular Venda -->
+      <div>
+        <button onclick="openSimulateModal()" class="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium text-sm px-3.5 py-2 rounded-xl shadow-lg shadow-teal-500/20 transition active:scale-95">
+          <i class="fa-solid fa-bolt"></i>
+          <span class="hidden md:inline">Simular Venda</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- TAB 1: VISÃO GERAL (DASHBOARD) -->
+    <section id="tab-dashboard" class="tab-pane block space-y-6">
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Aguardando Envio</p>
+              <h3 id="stat-ready-to-ship" class="text-3xl font-extrabold text-amber-400 mt-1">0</h3>
+            </div>
+            <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
+              <i class="fa-solid fa-truck-ramp-box text-xl"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3 flex items-center">
+            <span class="text-amber-400 mr-1"><i class="fa-solid fa-clock"></i></span>
+            Prontos para imprimir etiqueta
+          </p>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total de Pedidos</p>
+              <h3 id="stat-total-orders" class="text-3xl font-extrabold text-white mt-1">0</h3>
+            </div>
+            <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl">
+              <i class="fa-solid fa-cart-shopping text-xl"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3 flex items-center">
+            <span class="text-blue-400 mr-1"><i class="fa-solid fa-globe"></i></span>
+            Somatória dos 3 marketplaces
+          </p>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Faturamento Total</p>
+              <h3 id="stat-revenue" class="text-3xl font-extrabold text-emerald-400 mt-1">R$ 0,00</h3>
+            </div>
+            <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+              <i class="fa-solid fa-brazilian-real-sign text-xl"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3 flex items-center">
+            <span class="text-emerald-400 mr-1"><i class="fa-solid fa-arrow-trend-up"></i></span>
+            Pedidos confirmados
+          </p>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/60 p-5 rounded-2xl">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Produtos Cadastrados</p>
+              <h3 id="stat-products" class="text-3xl font-extrabold text-purple-400 mt-1">0</h3>
+            </div>
+            <div class="p-3 bg-purple-500/10 text-purple-400 rounded-xl">
+              <i class="fa-solid fa-cubes text-xl"></i>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-3 flex items-center">
+            <span class="text-purple-400 mr-1"><i class="fa-solid fa-code-merge"></i></span>
+            Catálogo centralizado
+          </p>
+        </div>
+      </div>
+
+      <!-- Channel Status Row -->
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+        <h3 class="font-bold text-white text-base mb-4 flex items-center">
+          <i class="fa-solid fa-network-wired mr-2 text-indigo-400"></i>
+          Status das Conexões de Venda
+        </h3>
+        <div id="channel-status-list" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-white text-base flex items-center">
+            <i class="fa-solid fa-wave-square mr-2 text-emerald-400"></i>
+            Atividade do Hub em Tempo Real
+          </h3>
+          <span class="text-xs text-slate-400">Sincronizações e Pedidos</span>
+        </div>
+        <div id="activity-log-list" class="space-y-3 max-h-80 overflow-y-auto pr-2">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CATÁLOGO & PUBLICAÇÃO UNIFICADA -->
+    <section id="tab-catalog" class="tab-pane hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white">Catálogo de Produtos</h2>
+          <p class="text-sm text-slate-400">Cadastre uma vez e publique simultaneamente no Mercado Livre, Shopee e TikTok Shop.</p>
+        </div>
+        <button onclick="openProductModal()" class="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-500/20 transition">
+          <i class="fa-solid fa-plus"></i>
+          <span>Novo Produto (Multi-Publicação)</span>
+        </button>
+      </div>
+
+      <!-- Products Table -->
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-800/90 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700">
+              <tr>
+                <th class="px-5 py-4">Produto</th>
+                <th class="px-4 py-4">SKU</th>
+                <th class="px-4 py-4">Preço Base</th>
+                <th class="px-4 py-4">Estoque Central</th>
+                <th class="px-5 py-4">Canais Conectados</th>
+                <th class="px-5 py-4 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body" class="divide-y divide-slate-700/60">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: CENTRAL DE EXPEDIÇÃO E ENVIO -->
+    <section id="tab-shipping" class="tab-pane hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white">Central de Expedição e Envio</h2>
+          <p class="text-sm text-slate-400">Pedidos de todos os canais prontos para embalagem, etiquetagem e despacho.</p>
+        </div>
+        <!-- Status Filter -->
+        <div class="flex space-x-2">
+          <button onclick="filterOrders('ready_to_ship')" id="order-filter-ready" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950">Aguardando Envio</button>
+          <button onclick="filterOrders('shipped')" id="order-filter-shipped" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white">Despachados</button>
+          <button onclick="filterOrders('all')" id="order-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white">Todos</button>
+        </div>
+      </div>
+
+      <!-- Orders List Cards -->
+      <div id="orders-container" class="space-y-4">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- TAB 4: CONEXÕES DE API & SETTINGS -->
+    <section id="tab-settings" class="tab-pane hidden space-y-6">
+      <div>
+        <h2 class="text-xl font-bold text-white">Configurações de APIs e Canais</h2>
+        <p class="text-sm text-slate-400">Insira suas credenciais oficiais de desenvolvedor ou utilize o Modo Simulação para testar.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Mercado Livre Settings -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-4 border-b border-slate-700/60">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-400/10 text-amber-400 flex items-center justify-center font-bold text-lg">
+                  ML
+                </div>
+                <div>
+                  <h3 class="font-bold text-white">Mercado Livre</h3>
+                  <p class="text-xs text-slate-400">Mercado Libre Developers</p>
+                </div>
+              </div>
+              <span id="ml-mode-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-400/20 text-amber-300">Sandbox</span>
+            </div>
+
+            <form id="form-channel-mercadolibre" onsubmit="saveChannelConfig(event, 'mercadolibre')" class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Modo de Operação</label>
+                <select name="mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <option value="sandbox">Modo Simulação (Testes)</option>
+                  <option value="production">Modo Produção (API Oficial)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">App ID (Client ID)</label>
+                <input type="text" name="app_id" placeholder="ex: 1234567890123456" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Client Secret</label>
+                <input type="password" name="client_secret" placeholder="••••••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Access Token</label>
+                <input type="password" name="access_token" placeholder="APP_USR-..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Seller ID / User ID</label>
+                <input type="text" name="seller_id" placeholder="ex: 987654321" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded-lg text-sm mt-2 transition">
+                Salvar Mercado Livre
+              </button>
+            </form>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-700/60 text-xs text-slate-400">
+            <strong>Webhook URL:</strong><br>
+            <code class="text-amber-400 select-all">/api/webhooks/mercadolibre</code>
+          </div>
+        </div>
+
+        <!-- Shopee Settings -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-4 border-b border-slate-700/60">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-400 flex items-center justify-center font-bold text-lg">
+                  SHP
+                </div>
+                <div>
+                  <h3 class="font-bold text-white">Shopee</h3>
+                  <p class="text-xs text-slate-400">Shopee Open Platform v2</p>
+                </div>
+              </div>
+              <span id="shopee-mode-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-orange-400/20 text-orange-300">Sandbox</span>
+            </div>
+
+            <form id="form-channel-shopee" onsubmit="saveChannelConfig(event, 'shopee')" class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Modo de Operação</label>
+                <select name="mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <option value="sandbox">Modo Simulação (Testes)</option>
+                  <option value="production">Modo Produção (API Oficial)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Partner ID</label>
+                <input type="text" name="partner_id" placeholder="ex: 1058291" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Partner Key (Secret)</label>
+                <input type="password" name="partner_key" placeholder="••••••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Shop ID</label>
+                <input type="text" name="shop_id" placeholder="ex: 554128" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Access Token</label>
+                <input type="password" name="access_token" placeholder="••••••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <button type="submit" class="w-full bg-orange-500 hover:bg-orange-400 text-white font-bold py-2 rounded-lg text-sm mt-2 transition">
+                Salvar Shopee
+              </button>
+            </form>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-700/60 text-xs text-slate-400">
+            <strong>Webhook URL:</strong><br>
+            <code class="text-orange-400 select-all">/api/webhooks/shopee</code>
+          </div>
+        </div>
+
+        <!-- TikTok Shop Settings -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-4 border-b border-slate-700/60">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold text-lg">
+                  TTS
+                </div>
+                <div>
+                  <h3 class="font-bold text-white">TikTok Shop</h3>
+                  <p class="text-xs text-slate-400">TikTok Shop Partner Center</p>
+                </div>
+              </div>
+              <span id="tiktok-mode-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-rose-400/20 text-rose-300">Sandbox</span>
+            </div>
+
+            <form id="form-channel-tiktok" onsubmit="saveChannelConfig(event, 'tiktok')" class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Modo de Operação</label>
+                <select name="mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                  <option value="sandbox">Modo Simulação (Testes)</option>
+                  <option value="production">Modo Produção (API Oficial)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">App Key</label>
+                <input type="text" name="app_key" placeholder="ex: 6d5g789..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">App Secret</label>
+                <input type="password" name="app_secret" placeholder="••••••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Shop Cipher</label>
+                <input type="text" name="shop_cipher" placeholder="GCP_BR_..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Access Token</label>
+                <input type="password" name="access_token" placeholder="••••••••••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <button type="submit" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 rounded-lg text-sm mt-2 transition">
+                Salvar TikTok Shop
+              </button>
+            </form>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-700/60 text-xs text-slate-400">
+            <strong>Webhook URL:</strong><br>
+            <code class="text-rose-400 select-all">/api/webhooks/tiktok</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: CADASTRAR PRODUTO (1-CLICK MULTI-PUBLISH) -->
+  <div id="modal-product" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-700">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center">
+            <i class="fa-solid fa-cloud-arrow-up text-indigo-400 mr-2"></i>
+            Cadastrar & Publicar nos 3 Marketplaces
+          </h3>
+          <p class="text-xs text-slate-400">Preencha os dados uma vez para sincronizar catálogo e estoque.</p>
+        </div>
+        <button onclick="closeProductModal()" class="text-slate-400 hover:text-white text-xl">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="product-form" onsubmit="handleProductSubmit(event)" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Título do Anúncio *</label>
+            <input type="text" id="p-title" required placeholder="Ex: Smartwatch Ultra Resistente à Água" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">SKU (Código Único) *</label>
+            <input type="text" id="p-sku" required placeholder="SW-ULTRA-01" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição</label>
+          <textarea id="p-desc" rows="3" placeholder="Detalhes, benefícios, compatibilidade..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Preço Base (R$) *</label>
+            <input type="number" step="0.01" id="p-price" required placeholder="129.90" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Estoque Inicial *</label>
+            <input type="number" id="p-stock" required placeholder="20" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Peso (kg)</label>
+            <input type="number" step="0.01" id="p-weight" value="0.30" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Dimensões (AxLxC cm)</label>
+            <div class="flex space-x-1">
+              <input type="number" id="p-h" value="10" placeholder="A" class="w-1/3 bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-center text-xs text-white">
+              <input type="number" id="p-w" value="15" placeholder="L" class="w-1/3 bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-center text-xs text-white">
+              <input type="number" id="p-l" value="20" placeholder="C" class="w-1/3 bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-center text-xs text-white">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">URL da Imagem</label>
+          <input type="url" id="p-image" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+        </div>
+
+        <!-- Channels to Publish Checklist -->
+        <div class="bg-slate-900/80 border border-slate-700 p-4 rounded-xl space-y-3">
+          <p class="text-xs font-bold text-slate-300 uppercase tracking-wide">Publicar nos Canais:</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label class="flex items-center space-x-2 bg-slate-800 p-2.5 rounded-lg border border-slate-700 cursor-pointer">
+              <input type="checkbox" id="pub-ml" checked class="rounded text-amber-500">
+              <span class="text-xs font-bold text-amber-400">Mercado Livre</span>
+            </label>
+            <label class="flex items-center space-x-2 bg-slate-800 p-2.5 rounded-lg border border-slate-700 cursor-pointer">
+              <input type="checkbox" id="pub-shopee" checked class="rounded text-orange-500">
+              <span class="text-xs font-bold text-orange-400">Shopee</span>
+            </label>
+            <label class="flex items-center space-x-2 bg-slate-800 p-2.5 rounded-lg border border-slate-700 cursor-pointer">
+              <input type="checkbox" id="pub-tiktok" checked class="rounded text-rose-500">
+              <span class="text-xs font-bold text-rose-400">TikTok Shop</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-3">
+          <button type="button" onclick="closeProductModal()" class="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-medium text-sm">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-save-product" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-xl text-sm shadow-lg shadow-indigo-500/20 transition flex items-center space-x-2">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Salvar & Publicar Agora</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: SIMULAR VENDA (TESTE MULTI-CANAL) -->
+  <div id="modal-simulate" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-700">
+        <h3 class="text-base font-bold text-white flex items-center">
+          <i class="fa-solid fa-bolt text-emerald-400 mr-2"></i>
+          Simular Venda em Marketplace
+        </h3>
+        <button onclick="closeSimulateModal()" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-400">
+        Dispara uma venda simulada. Você verá o estoque baixar automaticamente em todos os outros canais e um novo pedido entrar na Central de Envio.
+      </p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Qual canal fez a venda?</label>
+          <select id="sim-channel" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="mercadolibre">🟡 Mercado Livre</option>
+            <option value="shopee">🟠 Shopee</option>
+            <option value="tiktok">⚫ TikTok Shop</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Produto Vendido</label>
+          <select id="sim-product-sku" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Quantidade</label>
+          <input type="number" id="sim-qty" value="1" min="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Nome do Comprador</label>
+          <input type="text" id="sim-customer" value="Juliana Mendes" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="closeSimulateModal()" class="px-3 py-2 text-slate-400 text-sm">Cancelar</button>
+        <button onclick="triggerSimulateSale()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-sm shadow-lg transition">
+          Confirmar Venda
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-800 border border-slate-700 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-sm">
+    <span id="toast-icon" class="text-emerald-400"><i class="fa-solid fa-circle-check"></i></span>
+    <span id="toast-message" class="text-white font-medium">Operação realizada</span>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

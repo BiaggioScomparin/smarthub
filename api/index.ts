@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 import { DB } from "../src/db.ts";
 import type { ChannelId } from "../src/types.ts";
 import { catalogService } from "../src/services/catalog.ts";
@@ -35,6 +37,24 @@ function parseBody(req: IncomingMessage): Promise<any> {
   });
 }
 
+function getFileContent(filename: string): string | null {
+  const cwd = process.cwd();
+  const candidates = [
+    path.join(cwd, "public", filename),
+    path.join(cwd, filename)
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) {
+        return fs.readFileSync(c, "utf-8");
+      }
+    } catch {
+      // Continue search
+    }
+  }
+  return null;
+}
+
 export default async function handler(req: any, res: any) {
   const method = req.method;
   const rawUrl = req.url || "/";
@@ -51,6 +71,26 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    // Static files fallback if routed through function
+    if (pathname === "/" || pathname === "/index.html") {
+      const htmlContent = getFileContent("index.html");
+      if (htmlContent) return sendHtml(res, htmlContent);
+    }
+    if (pathname === "/app.js") {
+      const jsContent = getFileContent("app.js");
+      if (jsContent) {
+        res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+        return res.end(jsContent);
+      }
+    }
+    if (pathname === "/styles.css") {
+      const cssContent = getFileContent("styles.css");
+      if (cssContent) {
+        res.setHeader("Content-Type", "text/css; charset=utf-8");
+        return res.end(cssContent);
+      }
+    }
+
     // Stats
     if (pathname === "/api/stats" && method === "GET") {
       const stats = await DB.getStats();
@@ -202,6 +242,6 @@ export default async function handler(req: any, res: any) {
     return sendJson(res, { error: "Rota não encontrada" }, 404);
   } catch (err: any) {
     console.error("Vercel Function Error:", err);
-    return sendJson(res, { error: err.message }, 500);
+    return sendJson(res, { error: err.message, stack: err.stack }, 500);
   }
 }

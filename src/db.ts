@@ -1,4 +1,4 @@
-import pg from "npm:pg";
+import pg from "pg";
 import type { ChannelConfig, ChannelId, Order, Product, ProductChannelLink } from "./types.ts";
 
 const DEFAULT_DATABASE_URL = "postgresql://postgres.your-tenant-id:dcad519bf34b193c9e81461b097fecf4@184.107.176.201:6543/postgres";
