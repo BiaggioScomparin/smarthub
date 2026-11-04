@@ -6,6 +6,9 @@ export interface ChannelConfig {
   enabled: boolean;
   mode: "sandbox" | "production";
   credentials: Record<string, string>;
+  fee_percent: number;
+  fixed_fee: number;
+  free_shipping_threshold: number;
   last_sync_at?: string | null;
 }
 
@@ -15,7 +18,13 @@ export interface Product {
   title: string;
   description: string;
   base_price: number;
+  cost_price: number;
+  packaging_cost: number;
+  other_costs: number;
+  tax_percent: number;
+  target_profit_percent: number;
   stock: number;
+  min_stock: number;
   weight_kg: number;
   height_cm: number;
   width_cm: number;
@@ -87,4 +96,18 @@ export interface ShippingLabelResult {
   carrierName: string;
   barcode: string;
   htmlContent?: string;
+}
+
+export interface PriceCalculationResult {
+  channel_id: ChannelId;
+  channel_name: string;
+  total_cost: number;
+  fee_percent: number;
+  fixed_fee: number;
+  tax_percent: number;
+  suggested_price: number;
+  marketplace_fee_amount: number;
+  tax_amount: number;
+  net_profit_amount: number;
+  net_profit_margin_percent: number;
 }

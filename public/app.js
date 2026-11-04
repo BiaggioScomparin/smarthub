@@ -3,6 +3,7 @@ let products = [];
 let orders = [];
 let channels = [];
 let currentOrderFilter = "ready_to_ship";
+let selectedOrderIds = new Set();
 
 // Initialization
 document.addEventListener("DOMContentLoaded", () => {
@@ -66,10 +67,27 @@ async function loadStats() {
     const res = await fetch("/api/stats");
     const data = await res.json();
 
-    document.getElementById("stat-ready-to-ship").textContent = data.readyToShip;
-    document.getElementById("stat-total-orders").textContent = data.totalOrders;
-    document.getElementById("stat-revenue").textContent = `R$ ${data.totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-    document.getElementById("stat-products").textContent = data.totalProducts;
+    document.getElementById("stat-ready-to-ship").textContent = data.readyToShip ?? 0;
+    document.getElementById("stat-total-orders").textContent = data.totalOrders ?? 0;
+    document.getElementById("stat-revenue").textContent = `R$ ${(data.totalRevenue || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    document.getElementById("stat-products").textContent = data.totalProducts ?? 0;
+
+    // Financial & Inventory Valuation Cards
+    const elCost = document.getElementById("stat-cost-value");
+    if (elCost) elCost.textContent = `R$ ${(data.totalCostValue || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+    const elRetail = document.getElementById("stat-retail-value");
+    if (elRetail) elRetail.textContent = `R$ ${(data.totalRetailValue || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+    const elProfit = document.getElementById("stat-potential-profit");
+    if (elProfit) elProfit.textContent = `R$ ${(data.potentialProfit || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+    const elLowStock = document.getElementById("stat-low-stock");
+    const lowCount = data.lowStockCount || 0;
+    if (elLowStock) {
+      elLowStock.textContent = `${lowCount} ${lowCount === 1 ? "produto" : "produtos"}`;
+      elLowStock.className = lowCount > 0 ? "text-xl font-bold text-rose-400 mt-1" : "text-xl font-bold text-slate-200 mt-1";
+    }
 
     const badge = document.getElementById("shipping-badge");
     if (data.readyToShip > 0) {
@@ -102,6 +120,7 @@ async function loadChannels() {
       }
 
       const isLive = c.mode === "production";
+      const feeInfo = `Taxa: ${c.fee_percent || 0}% + R$ ${(c.fixed_fee || 0).toFixed(2)}`;
 
       return `
         <div class="bg-slate-900/60 border border-slate-700/60 rounded-xl p-4 flex items-center justify-between">
@@ -111,7 +130,7 @@ async function loadChannels() {
             </div>
             <div>
               <h4 class="font-bold text-white text-sm">${c.name}</h4>
-              <p class="text-xs text-slate-400">Sync: Estoque & Pedidos</p>
+              <p class="text-[11px] text-slate-400">${feeInfo}</p>
             </div>
           </div>
           <div class="text-right">
@@ -128,6 +147,8 @@ async function loadChannels() {
       const form = document.getElementById(`form-channel-${c.id}`);
       if (form) {
         if (form.elements["mode"]) form.elements["mode"].value = c.mode || "sandbox";
+        if (form.elements["fee_percent"]) form.elements["fee_percent"].value = c.fee_percent ?? 16;
+        if (form.elements["fixed_fee"]) form.elements["fixed_fee"].value = c.fixed_fee ?? 5;
         for (const [key, val] of Object.entries(c.credentials || {})) {
           if (form.elements[key]) form.elements[key].value = val;
         }
@@ -145,21 +166,27 @@ async function saveChannelConfig(e, channelId) {
   const formData = new FormData(form);
 
   const mode = formData.get("mode");
+  const fee_percent = parseFloat(formData.get("fee_percent")) || 0;
+  const fixed_fee = parseFloat(formData.get("fixed_fee")) || 0;
+
   const credentials = {};
   for (const [k, v] of formData.entries()) {
-    if (k !== "mode") credentials[k] = v;
+    if (k !== "mode" && k !== "fee_percent" && k !== "fixed_fee") {
+      credentials[k] = v;
+    }
   }
 
   try {
     const res = await fetch(`/api/channels/${channelId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, credentials })
+      body: JSON.stringify({ mode, fee_percent, fixed_fee, credentials })
     });
     const data = await res.json();
     if (data.success) {
       showToast(`Configurações de ${channelId} salvas com sucesso!`);
       loadChannels();
+      onCostInputsChanged(); // Recalculate preview pricing with new fees
     }
   } catch (err) {
     showToast(`Erro ao salvar canal: ${err.message}`, true);
@@ -219,7 +246,7 @@ async function loadProducts() {
     if (products.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" class="px-5 py-8 text-center text-slate-500">
+          <td colspan="8" class="px-5 py-8 text-center text-slate-500">
             Nenhum produto cadastrado ainda. Clique em "Novo Produto" para começar.
           </td>
         </tr>
@@ -236,27 +263,51 @@ async function loadProducts() {
 
       const getBadge = (link, label, color) => {
         if (!link) return `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-500 border border-slate-700">${label}: Não</span>`;
-        if (link.status === "synced") return `<span class="px-2 py-0.5 rounded text-[10px] bg-${color}-500/20 text-${color}-300 font-semibold border border-${color}-500/30">✓ ${label}</span>`;
+        if (link.status === "synced") {
+          const pr = link.channel_price ? ` R$ ${Number(link.channel_price).toFixed(2)}` : "";
+          return `<span class="px-2 py-0.5 rounded text-[10px] bg-${color}-500/20 text-${color}-300 font-semibold border border-${color}-500/30">✓ ${label}${pr}</span>`;
+        }
         return `<span class="px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30">✗ ${label}</span>`;
       };
+
+      const costPrice = Number(p.cost_price) || 0;
+      const packagingCost = Number(p.packaging_cost) || 0;
+      const otherCosts = Number(p.other_costs) || 0;
+      const totalCost = costPrice + packagingCost + otherCosts;
+      const basePrice = Number(p.base_price) || 0;
+      const minStock = Number(p.min_stock) || 5;
+      const isLowStock = p.stock <= minStock;
+
+      const grossProfit = basePrice - totalCost;
+      const marginPercent = basePrice > 0 ? (grossProfit / basePrice) * 100 : 0;
 
       return `
         <tr class="hover:bg-slate-800/40 transition">
           <td class="px-5 py-4 flex items-center space-x-3">
-            <img src="${img}" alt="${p.title}" class="w-12 h-12 rounded-lg object-cover bg-slate-800 border border-slate-700">
+            <img src="${img}" alt="${p.title}" class="w-12 h-12 rounded-lg object-cover bg-slate-800 border border-slate-700 flex-shrink-0">
             <div>
               <p class="font-bold text-white max-w-xs truncate">${p.title}</p>
               <p class="text-xs text-slate-400">Dim: ${p.height_cm}x${p.width_cm}x${p.length_cm} cm • ${p.weight_kg}kg</p>
             </div>
           </td>
-          <td class="px-4 py-4 font-mono text-xs text-indigo-300 font-semibold">${p.sku}</td>
-          <td class="px-4 py-4 font-bold text-emerald-400">R$ ${p.base_price.toFixed(2)}</td>
+          <td class="px-3 py-4 font-mono text-xs text-indigo-300 font-semibold">${p.sku}</td>
+          <td class="px-3 py-4">
+            <div class="font-bold text-slate-200">R$ ${totalCost.toFixed(2)}</div>
+            <div class="text-[10px] text-slate-400">Custo: ${costPrice.toFixed(2)} | Emb: ${packagingCost.toFixed(2)}</div>
+          </td>
+          <td class="px-3 py-4 font-bold text-emerald-400">R$ ${basePrice.toFixed(2)}</td>
+          <td class="px-3 py-4">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${grossProfit >= 0 ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}">
+              ${marginPercent.toFixed(1)}%
+            </span>
+            <div class="text-[10px] text-slate-400 mt-0.5">R$ ${grossProfit.toFixed(2)}</div>
+          </td>
           <td class="px-4 py-4">
-            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${p.stock <= 5 ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"}">
-              ${p.stock} un
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${isLowStock ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" : "bg-emerald-500/20 text-emerald-300"}">
+              ${isLowStock ? '<i class="fa-solid fa-triangle-exclamation mr-1"></i>' : ""} ${p.stock} un ${isLowStock ? `(Mín: ${minStock})` : ""}
             </span>
           </td>
-          <td class="px-5 py-4">
+          <td class="px-4 py-4">
             <div class="flex flex-wrap gap-1.5">
               ${getBadge(mlLink, "ML", "amber")}
               ${getBadge(shpLink, "Shopee", "orange")}
@@ -282,6 +333,7 @@ async function loadProducts() {
 // Modals
 function openProductModal() {
   document.getElementById("modal-product").classList.remove("hidden");
+  onCostInputsChanged();
 }
 
 function closeProductModal() {
@@ -296,19 +348,101 @@ function closeSimulateModal() {
   document.getElementById("modal-simulate").classList.add("hidden");
 }
 
-// Product Submit (1-Click Multi-Publish)
+// Real-Time Cost & Channel Price Simulation
+async function onCostInputsChanged() {
+  const costPrice = parseFloat(document.getElementById("p-cost")?.value) || 0;
+  const packagingCost = parseFloat(document.getElementById("p-packaging")?.value) || 0;
+  const otherCosts = parseFloat(document.getElementById("p-other")?.value) || 0;
+  const taxPercent = parseFloat(document.getElementById("p-tax")?.value) || 0;
+  const profitType = document.getElementById("p-profit-type")?.value || "percent";
+  const profitVal = parseFloat(document.getElementById("p-profit-val")?.value) || 0;
+
+  const totalCost = costPrice + packagingCost + otherCosts;
+  const totalCostEl = document.getElementById("calc-total-cost");
+  if (totalCostEl) totalCostEl.textContent = `R$ ${totalCost.toFixed(2)}`;
+
+  const lblProfit = document.getElementById("lbl-profit-val");
+  if (lblProfit) {
+    lblProfit.textContent = profitType === "percent"
+      ? "Lucro Desejado (% sobre venda)"
+      : "Lucro Líquido Fixo por Unidade (R$)";
+  }
+
+  try {
+    const res = await fetch("/api/pricing/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cost_price: costPrice,
+        packaging_cost: packagingCost,
+        other_costs: otherCosts,
+        tax_percent: taxPercent,
+        target_profit_type: profitType,
+        target_profit_value: profitVal
+      })
+    });
+    const data = await res.json();
+    if (data.success && data.results) {
+      let maxSuggested = 0;
+      data.results.forEach(r => {
+        if (r.suggested_price > maxSuggested) maxSuggested = r.suggested_price;
+        const prefix = r.channel_id === "mercadolibre" ? "ml" : r.channel_id;
+
+        const inputPrice = document.getElementById(`p-price-${prefix}`);
+        const feeEl = document.getElementById(`calc-fee-${prefix}`);
+        const taxEl = document.getElementById(`calc-tax-${prefix}`);
+        const profitEl = document.getElementById(`calc-profit-${prefix}`);
+
+        if (inputPrice) {
+          inputPrice.value = r.suggested_price.toFixed(2);
+        }
+        if (feeEl) feeEl.textContent = `-R$ ${r.marketplace_fee_amount.toFixed(2)}`;
+        if (taxEl) taxEl.textContent = `-R$ ${r.tax_amount.toFixed(2)}`;
+        if (profitEl) {
+          profitEl.textContent = `R$ ${r.net_profit_amount.toFixed(2)} (${r.net_profit_margin_percent.toFixed(1)}%)`;
+        }
+      });
+
+      const basePriceEl = document.getElementById("p-price");
+      if (basePriceEl) {
+        basePriceEl.value = maxSuggested.toFixed(2);
+      }
+    }
+  } catch (err) {
+    console.error("Erro no cálculo de precificação:", err);
+  }
+}
+
+// Product Submit (1-Click Multi-Publish with smart pricing)
 async function handleProductSubmit(e) {
   e.preventDefault();
   const btn = document.getElementById("btn-save-product");
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Publicando nos Canais...</span>';
 
+  const cost_price = parseFloat(document.getElementById("p-cost").value) || 0;
+  const packaging_cost = parseFloat(document.getElementById("p-packaging").value) || 0;
+  const other_costs = parseFloat(document.getElementById("p-other").value) || 0;
+  const tax_percent = parseFloat(document.getElementById("p-tax").value) || 0;
+  const target_profit_val = parseFloat(document.getElementById("p-profit-val").value) || 0;
+  const min_stock = parseInt(document.getElementById("p-min-stock").value) || 5;
+
+  const mlPrice = parseFloat(document.getElementById("p-price-ml")?.value) || parseFloat(document.getElementById("p-price").value);
+  const shpPrice = parseFloat(document.getElementById("p-price-shopee")?.value) || parseFloat(document.getElementById("p-price").value);
+  const ttsPrice = parseFloat(document.getElementById("p-price-tiktok")?.value) || parseFloat(document.getElementById("p-price").value);
+
   const productData = {
     title: document.getElementById("p-title").value,
     sku: document.getElementById("p-sku").value,
     description: document.getElementById("p-desc").value,
     base_price: parseFloat(document.getElementById("p-price").value),
+    cost_price,
+    packaging_cost,
+    other_costs,
+    tax_percent,
+    target_profit_percent: target_profit_val,
     stock: parseInt(document.getElementById("p-stock").value),
+    min_stock,
     weight_kg: parseFloat(document.getElementById("p-weight").value) || 0.3,
     height_cm: parseFloat(document.getElementById("p-h").value) || 10,
     width_cm: parseFloat(document.getElementById("p-w").value) || 15,
@@ -316,9 +450,9 @@ async function handleProductSubmit(e) {
     images: [document.getElementById("p-image").value || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop"],
     publishNow: true,
     channelSettings: {
-      mercadolibre: { enabled: document.getElementById("pub-ml").checked },
-      shopee: { enabled: document.getElementById("pub-shopee").checked },
-      tiktok: { enabled: document.getElementById("pub-tiktok").checked }
+      mercadolibre: { enabled: document.getElementById("pub-ml").checked, price: mlPrice },
+      shopee: { enabled: document.getElementById("pub-shopee").checked, price: shpPrice },
+      tiktok: { enabled: document.getElementById("pub-tiktok").checked, price: ttsPrice }
     }
   };
 
@@ -376,7 +510,7 @@ async function deleteProduct(productId) {
   }
 }
 
-// Orders & Shipping
+// Orders & Shipping Filters
 function filterOrders(status) {
   currentOrderFilter = status;
   document.getElementById("order-filter-ready").className = status === "ready_to_ship"
@@ -392,6 +526,92 @@ function filterOrders(status) {
   loadOrders(status);
 }
 
+// Batch Order Selection
+function toggleSelectOrder(orderId, isChecked) {
+  if (isChecked) {
+    selectedOrderIds.add(orderId);
+  } else {
+    selectedOrderIds.delete(orderId);
+  }
+  updateBatchToolbar();
+}
+
+function toggleSelectAllOrders(isChecked) {
+  const visibleCheckboxes = document.querySelectorAll(".order-select-checkbox");
+  visibleCheckboxes.forEach(cb => {
+    cb.checked = isChecked;
+    if (isChecked) selectedOrderIds.add(cb.value);
+    else selectedOrderIds.delete(cb.value);
+  });
+  updateBatchToolbar();
+}
+
+function updateBatchToolbar() {
+  const countEl = document.getElementById("batch-selected-count");
+  const sheetsEl = document.getElementById("batch-sheets-count");
+  const btnPrint = document.getElementById("btn-batch-print");
+  const btnShip = document.getElementById("btn-batch-ship");
+  const selectAllCb = document.getElementById("select-all-orders");
+
+  const count = selectedOrderIds.size;
+  const sheets = Math.ceil(count / 2);
+
+  if (countEl) countEl.textContent = count;
+  if (sheetsEl) sheetsEl.textContent = `(${sheets} ${sheets === 1 ? "folha A4" : "folhas A4"})`;
+
+  if (btnPrint) btnPrint.disabled = count === 0;
+  if (btnShip) btnShip.disabled = count === 0;
+
+  const visibleCheckboxes = document.querySelectorAll(".order-select-checkbox");
+  if (selectAllCb && visibleCheckboxes.length > 0) {
+    const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+    selectAllCb.checked = allChecked;
+  }
+}
+
+// Print Batch Shipping Labels (2-per-page A4 + Declaração de Conteúdo)
+function printSelectedBatchLabels() {
+  if (selectedOrderIds.size === 0) {
+    showToast("Selecione pelo menos um pedido para imprimir etiquetas", true);
+    return;
+  }
+  const ids = Array.from(selectedOrderIds).join(",");
+  window.open(`/api/orders/batch-labels?ids=${ids}`, "_blank");
+}
+
+// Mark Batch Orders as Shipped
+async function shipSelectedBatchOrders() {
+  if (selectedOrderIds.size === 0) return;
+  const count = selectedOrderIds.size;
+  if (!confirm(`Deseja despachar todos os ${count} pedidos selecionados agora?`)) return;
+
+  const btn = document.getElementById("btn-batch-ship");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Despachando...';
+
+  try {
+    const res = await fetch("/api/orders/batch-ship", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderIds: Array.from(selectedOrderIds) })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${data.count} pedidos despachados e notificados com sucesso!`);
+      selectedOrderIds.clear();
+      refreshAll();
+    } else {
+      showToast(data.error || "Erro no despacho em lote", true);
+    }
+  } catch (err) {
+    showToast(`Erro: ${err.message}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-truck-fast mr-1"></i> Despachar em Lote';
+  }
+}
+
+// Load Orders List
 async function loadOrders(status = "ready_to_ship", showLoading = true) {
   try {
     const res = await fetch(`/api/orders?status=${status}`);
@@ -406,6 +626,7 @@ async function loadOrders(status = "ready_to_ship", showLoading = true) {
           <p>Nenhum pedido encontrado nesta visualização.</p>
         </div>
       `;
+      updateBatchToolbar();
       return;
     }
 
@@ -418,12 +639,14 @@ async function loadOrders(status = "ready_to_ship", showLoading = true) {
       }
 
       const isReady = o.status === "ready_to_ship";
-      const addr = o.shipping_address;
+      const addr = o.shipping_address || {};
+      const isChecked = selectedOrderIds.has(o.id);
 
       return `
         <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 hover:border-slate-600 transition space-y-4">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-3 border-b border-slate-700/60">
             <div class="flex items-center space-x-3">
+              <input type="checkbox" value="${o.id}" ${isChecked ? "checked" : ""} onchange="toggleSelectOrder('${o.id}', this.checked)" class="order-select-checkbox w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 cursor-pointer">
               ${channelTag}
               <span class="font-mono text-xs font-bold text-white">#${o.remote_order_id}</span>
               <span class="text-xs text-slate-400">• ${new Date(o.created_at).toLocaleString("pt-BR")}</span>
@@ -442,11 +665,11 @@ async function loadOrders(status = "ready_to_ship", showLoading = true) {
               ${o.items.map(it => `
                 <div class="flex justify-between items-center py-1 border-b border-slate-800 last:border-0">
                   <span class="text-white font-medium truncate max-w-[160px]">${it.title}</span>
-                  <span class="text-slate-400 font-mono">${it.quantity}x R$ ${it.unit_price.toFixed(2)}</span>
+                  <span class="text-slate-400 font-mono">${it.quantity}x R$ ${Number(it.unit_price).toFixed(2)}</span>
                 </div>
               `).join("")}
               <div class="mt-2 text-right font-bold text-emerald-400 text-sm">
-                Total: R$ ${o.total_amount.toFixed(2)}
+                Total: R$ ${Number(o.total_amount).toFixed(2)}
               </div>
             </div>
 
@@ -454,23 +677,23 @@ async function loadOrders(status = "ready_to_ship", showLoading = true) {
             <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
               <p class="font-bold text-slate-400 uppercase tracking-wide text-[10px] mb-2">Destinatário & Entrega</p>
               <p class="font-bold text-white">${o.customer_name}</p>
-              <p class="text-slate-300 mt-0.5">${addr.street}, ${addr.number} ${addr.complement ? "- " + addr.complement : ""}</p>
-              <p class="text-slate-400">${addr.neighborhood || ""} • ${addr.city}/${addr.state}</p>
-              <p class="text-slate-500 mt-1 font-mono">CEP: ${addr.zip_code}</p>
+              <p class="text-slate-300 mt-0.5">${addr.street || ""}, ${addr.number || ""} ${addr.complement ? "- " + addr.complement : ""}</p>
+              <p class="text-slate-400">${addr.neighborhood || ""} • ${addr.city || ""}/${addr.state || ""}</p>
+              <p class="text-slate-500 mt-1 font-mono">CEP: ${addr.zip_code || ""}</p>
             </div>
 
             <!-- Envio & Etiqueta -->
             <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
               <div>
                 <p class="font-bold text-slate-400 uppercase tracking-wide text-[10px] mb-2">Logística & Rastreio</p>
-                <p class="font-semibold text-indigo-300">${o.shipping_service}</p>
+                <p class="font-semibold text-indigo-300">${o.shipping_service || "Logística Integrada"}</p>
                 <p class="font-mono text-slate-400 mt-0.5">${o.tracking_code || "Aguardando geração"}</p>
               </div>
 
               <div class="flex space-x-2 mt-3 pt-2 border-t border-slate-800">
                 <button onclick="printOrderLabel('${o.id}')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 transition">
                   <i class="fa-solid fa-print mr-1"></i>
-                  <span>Etiqueta</span>
+                  <span>Etiqueta + Declaração</span>
                 </button>
                 ${isReady ? `
                   <button onclick="shipOrder('${o.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs flex items-center justify-center space-x-1 transition">
@@ -484,6 +707,8 @@ async function loadOrders(status = "ready_to_ship", showLoading = true) {
         </div>
       `;
     }).join("");
+
+    updateBatchToolbar();
   } catch (err) {
     console.error("Erro ao carregar pedidos:", err);
   }
@@ -494,7 +719,7 @@ function printOrderLabel(orderId) {
   window.open(`/api/orders/${orderId}/label`, "_blank");
 }
 
-// Mark as Shipped
+// Mark Single Order as Shipped
 async function shipOrder(orderId) {
   try {
     const res = await fetch(`/api/orders/${orderId}/ship`, { method: "POST" });
@@ -532,7 +757,6 @@ async function triggerSimulateSale() {
       showToast(`Venda simulada! ${qty} un. baixadas do estoque central.`);
       closeSimulateModal();
       refreshAll();
-      // Auto-switch to shipping tab to view the label
       switchTab("shipping");
     } else {
       showToast(data.error || "Erro ao simular venda", true);

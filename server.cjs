@@ -47,6 +47,9 @@ var DB = {
       name: r.name,
       enabled: Boolean(r.enabled),
       mode: r.mode,
+      fee_percent: Number(r.fee_percent || 16),
+      fixed_fee: Number(r.fixed_fee || 5),
+      free_shipping_threshold: Number(r.free_shipping_threshold || 79),
       credentials: typeof r.credentials_json === "string" ? JSON.parse(r.credentials_json || "{}") : r.credentials_json || {},
       last_sync_at: r.last_sync_at ? new Date(r.last_sync_at).toISOString() : null
     }));
@@ -60,6 +63,9 @@ var DB = {
       name: r.name,
       enabled: Boolean(r.enabled),
       mode: r.mode,
+      fee_percent: Number(r.fee_percent || 16),
+      fixed_fee: Number(r.fixed_fee || 5),
+      free_shipping_threshold: Number(r.free_shipping_threshold || 79),
       credentials: typeof r.credentials_json === "string" ? JSON.parse(r.credentials_json || "{}") : r.credentials_json || {},
       last_sync_at: r.last_sync_at ? new Date(r.last_sync_at).toISOString() : null
     };
@@ -70,11 +76,13 @@ var DB = {
     const enabled = data.enabled !== void 0 ? data.enabled : current.enabled;
     const mode = data.mode || current.mode;
     const credentials = data.credentials || current.credentials;
+    const fee_percent = data.fee_percent !== void 0 ? data.fee_percent : current.fee_percent;
+    const fixed_fee = data.fixed_fee !== void 0 ? data.fixed_fee : current.fixed_fee;
     await pool.query(
       `UPDATE hub_channels
-       SET enabled = $1, mode = $2, credentials_json = $3, last_sync_at = NOW()
-       WHERE id = $4`,
-      [enabled, mode, JSON.stringify(credentials), id]
+       SET enabled = $1, mode = $2, credentials_json = $3, fee_percent = $4, fixed_fee = $5, last_sync_at = NOW()
+       WHERE id = $6`,
+      [enabled, mode, JSON.stringify(credentials), fee_percent, fixed_fee, id]
     );
   },
   // Products
@@ -103,7 +111,13 @@ var DB = {
       title: r.title,
       description: r.description || "",
       base_price: Number(r.base_price),
+      cost_price: Number(r.cost_price || 0),
+      packaging_cost: Number(r.packaging_cost || 2.5),
+      other_costs: Number(r.other_costs || 0),
+      tax_percent: Number(r.tax_percent || 6),
+      target_profit_percent: Number(r.target_profit_percent || 30),
       stock: Number(r.stock),
+      min_stock: Number(r.min_stock || 5),
       weight_kg: Number(r.weight_kg),
       height_cm: Number(r.height_cm),
       width_cm: Number(r.width_cm),
@@ -136,7 +150,13 @@ var DB = {
       title: r.title,
       description: r.description || "",
       base_price: Number(r.base_price),
+      cost_price: Number(r.cost_price || 0),
+      packaging_cost: Number(r.packaging_cost || 2.5),
+      other_costs: Number(r.other_costs || 0),
+      tax_percent: Number(r.tax_percent || 6),
+      target_profit_percent: Number(r.target_profit_percent || 30),
       stock: Number(r.stock),
+      min_stock: Number(r.min_stock || 5),
       weight_kg: Number(r.weight_kg),
       height_cm: Number(r.height_cm),
       width_cm: Number(r.width_cm),
@@ -154,15 +174,24 @@ var DB = {
   },
   async createProduct(data) {
     const res = await pool.query(
-      `INSERT INTO hub_products (sku, title, description, base_price, stock, weight_kg, height_cm, width_cm, length_cm, images_json)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id`,
+      `INSERT INTO hub_products (
+        sku, title, description, base_price, cost_price, packaging_cost, other_costs,
+        tax_percent, target_profit_percent, stock, min_stock, weight_kg, height_cm, width_cm, length_cm, images_json
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING id`,
       [
         data.sku.trim(),
         data.title.trim(),
         data.description || "",
         data.base_price,
+        data.cost_price || 0,
+        data.packaging_cost || 2.5,
+        data.other_costs || 0,
+        data.tax_percent || 6,
+        data.target_profit_percent || 30,
         data.stock,
+        data.min_stock || 5,
         data.weight_kg || 0.3,
         data.height_cm || 10,
         data.width_cm || 15,
@@ -178,16 +207,23 @@ var DB = {
     if (!existing) return null;
     await pool.query(
       `UPDATE hub_products
-       SET sku = $1, title = $2, description = $3, base_price = $4, stock = $5,
-           weight_kg = $6, height_cm = $7, width_cm = $8, length_cm = $9,
-           images_json = $10, updated_at = NOW()
-       WHERE id = $11`,
+       SET sku = $1, title = $2, description = $3, base_price = $4,
+           cost_price = $5, packaging_cost = $6, other_costs = $7, tax_percent = $8,
+           target_profit_percent = $9, stock = $10, min_stock = $11, weight_kg = $12,
+           height_cm = $13, width_cm = $14, length_cm = $15, images_json = $16, updated_at = NOW()
+       WHERE id = $17`,
       [
         data.sku !== void 0 ? data.sku.trim() : existing.sku,
         data.title !== void 0 ? data.title.trim() : existing.title,
         data.description !== void 0 ? data.description : existing.description,
         data.base_price !== void 0 ? data.base_price : existing.base_price,
+        data.cost_price !== void 0 ? data.cost_price : existing.cost_price,
+        data.packaging_cost !== void 0 ? data.packaging_cost : existing.packaging_cost,
+        data.other_costs !== void 0 ? data.other_costs : existing.other_costs,
+        data.tax_percent !== void 0 ? data.tax_percent : existing.tax_percent,
+        data.target_profit_percent !== void 0 ? data.target_profit_percent : existing.target_profit_percent,
         data.stock !== void 0 ? data.stock : existing.stock,
+        data.min_stock !== void 0 ? data.min_stock : existing.min_stock,
         data.weight_kg !== void 0 ? data.weight_kg : existing.weight_kg,
         data.height_cm !== void 0 ? data.height_cm : existing.height_cm,
         data.width_cm !== void 0 ? data.width_cm : existing.width_cm,
@@ -273,6 +309,26 @@ var DB = {
       created_at: new Date(r.created_at).toISOString()
     };
   },
+  async getOrdersByIds(ids) {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    const res = await pool.query(`SELECT * FROM hub_orders WHERE id IN (${placeholders}) ORDER BY created_at DESC`, ids);
+    return res.rows.map((r) => ({
+      id: r.id,
+      channel_id: r.channel_id,
+      remote_order_id: r.remote_order_id,
+      customer_name: r.customer_name,
+      customer_document: r.customer_document || "",
+      items: typeof r.items_json === "string" ? JSON.parse(r.items_json || "[]") : r.items_json || [],
+      total_amount: Number(r.total_amount),
+      shipping_address: typeof r.shipping_address_json === "string" ? JSON.parse(r.shipping_address_json || "{}") : r.shipping_address_json || {},
+      shipping_label_url: r.shipping_label_url || "",
+      tracking_code: r.tracking_code || "",
+      shipping_service: r.shipping_service,
+      status: r.status,
+      created_at: new Date(r.created_at).toISOString()
+    }));
+  },
   async createOrder(order) {
     const res = await pool.query(
       `INSERT INTO hub_orders (channel_id, remote_order_id, customer_name, customer_document, items_json, total_amount, shipping_address_json, shipping_label_url, tracking_code, shipping_service, status)
@@ -324,19 +380,34 @@ var DB = {
     }));
   },
   async getStats() {
-    const [pCount, oCount, rCount, revCount, sCount] = await Promise.all([
+    const [pCount, oCount, rCount, revCount, stockStats] = await Promise.all([
       pool.query("SELECT COUNT(*) as c FROM hub_products"),
       pool.query("SELECT COUNT(*) as c FROM hub_orders"),
       pool.query("SELECT COUNT(*) as c FROM hub_orders WHERE status = 'ready_to_ship'"),
       pool.query("SELECT COALESCE(SUM(total_amount), 0) as s FROM hub_orders WHERE status != 'cancelled'"),
-      pool.query("SELECT COUNT(*) as c FROM hub_products WHERE stock <= 5")
+      pool.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE stock <= min_stock) as low_stock_count,
+          COALESCE(SUM(stock * cost_price), 0) as total_cost_value,
+          COALESCE(SUM(stock * base_price), 0) as total_retail_value,
+          COALESCE(SUM(stock), 0) as total_units
+        FROM hub_products
+      `)
     ]);
+    const stock = stockStats.rows[0];
+    const costVal = Number(Number(stock.total_cost_value).toFixed(2));
+    const retailVal = Number(Number(stock.total_retail_value).toFixed(2));
+    const potentialProfit = Number((retailVal - costVal).toFixed(2));
     return {
       totalProducts: Number(pCount.rows[0].c),
       totalOrders: Number(oCount.rows[0].c),
       readyToShip: Number(rCount.rows[0].c),
       totalRevenue: Number(Number(revCount.rows[0].s).toFixed(2)),
-      lowStockCount: Number(sCount.rows[0].c)
+      lowStockCount: Number(stock.low_stock_count || 0),
+      totalCostValue: costVal,
+      totalRetailValue: retailVal,
+      potentialProfit,
+      totalUnitsInStock: Number(stock.total_units || 0)
     };
   }
 };
@@ -766,7 +837,7 @@ var CatalogService = class {
         continue;
       }
       const adapter = await this.getAdapter(channelId);
-      const customPrice = setting?.customPrice || product.base_price;
+      const customPrice = setting?.price || setting?.customPrice || product.base_price;
       const categoryId = setting?.categoryId;
       try {
         const result = await adapter.publishProduct(product, customPrice, categoryId);
@@ -910,104 +981,346 @@ var OrderService = class {
     await inventoryService.deductStockForOrder(params.items, params.channelId);
     return order;
   }
+  renderSingleOrderUnit(order, carrierName, trackingCode) {
+    const channelLabel = order.channel_id === "mercadolibre" ? "\u{1F7E1} Mercado Livre" : order.channel_id === "shopee" ? "\u{1F7E0} Shopee" : "\u26AB TikTok Shop";
+    const addr = order.shipping_address;
+    return `
+    <div class="order-unit">
+      <!-- Metade Esquerda: Etiqueta de Envio -->
+      <div class="shipping-half">
+        <div class="unit-header">
+          <span class="channel-pill">${channelLabel}</span>
+          <span class="carrier-pill">${carrierName}</span>
+        </div>
+
+        <div class="barcode-wrapper">
+          <div class="barcode-graphic"></div>
+          <div class="tracking-text">${trackingCode}</div>
+          <div class="remote-id">Pedido: ${order.remote_order_id}</div>
+        </div>
+
+        <div class="box dest-box">
+          <div class="box-title">DESTINAT\xC1RIO</div>
+          <div class="line-dest"><strong>${order.customer_name}</strong></div>
+          <div>${addr.street}, ${addr.number} ${addr.complement ? "- " + addr.complement : ""}</div>
+          <div>${addr.neighborhood || ""} \u2022 ${addr.city} / ${addr.state}</div>
+          <div class="zip-highlight">CEP: ${addr.zip_code}</div>
+          <div class="doc-text">Doc: ${order.customer_document}</div>
+        </div>
+
+        <div class="box rem-box">
+          <div class="box-title">REMETENTE</div>
+          <div><strong>SmartHub E-commerce LTDA</strong></div>
+          <div>Av. Log\xEDstica e Distribui\xE7\xE3o, 1000 - SP</div>
+          <div>CEP: 01001-000 \u2022 S\xE3o Paulo - SP</div>
+        </div>
+      </div>
+
+      <!-- Metade Direita: Declara\xE7\xE3o de Conte\xFAdo -->
+      <div class="declaration-half">
+        <div class="decl-title">DECLARA\xC7\xC3O DE CONTE\xDADO</div>
+
+        <div class="decl-subbox">
+          <div class="decl-header-row">
+            <div><strong>Remetente:</strong> SmartHub LTDA</div>
+            <div><strong>Destinat\xE1rio:</strong> ${order.customer_name.slice(0, 24)}</div>
+          </div>
+          <div class="decl-header-row">
+            <div><strong>Cidade/UF:</strong> S\xE3o Paulo/SP</div>
+            <div><strong>Cidade/UF:</strong> ${addr.city}/${addr.state}</div>
+          </div>
+        </div>
+
+        <table class="decl-items-table">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Item / Conte\xFAdo</th>
+              <th style="width: 15%; text-align: center;">SKU</th>
+              <th style="width: 10%; text-align: center;">Qtd</th>
+              <th style="width: 25%; text-align: right;">Total R$</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${order.items.map((it) => `
+              <tr>
+                <td>${it.title.slice(0, 28)}</td>
+                <td style="text-align: center; font-family: monospace;">${it.sku}</td>
+                <td style="text-align: center;">${it.quantity}</td>
+                <td style="text-align: right;">R$ ${(it.quantity * it.unit_price).toFixed(2)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+
+        <div class="decl-totals">
+          <span>Qtd Total: ${order.items.reduce((acc, it) => acc + it.quantity, 0)} itens</span>
+          <strong>Valor Declarado: R$ ${order.total_amount.toFixed(2)}</strong>
+        </div>
+
+        <div class="decl-legal">
+          Declaro que n\xE3o me enquadro no conceito de contribuinte previsto no art. 4\xBA da Lei Complementar n\xBA 87/1996, n\xE3o realizando, de forma habitual ou em volume comercial, opera\xE7\xF5es de circula\xE7\xE3o de mercadorias.
+        </div>
+
+        <div class="signature-line">
+          <div>Data: ___/___/2026</div>
+          <div style="border-top: 1px solid #333; width: 55%; text-align: center;">Assinatura do Remetente</div>
+        </div>
+      </div>
+    </div>
+    `;
+  }
   async getPrintableShippingLabel(orderId) {
     const order = await DB.getOrderById(orderId);
-    if (!order) {
-      throw new Error("Pedido n\xE3o encontrado");
+    if (!order) throw new Error("Pedido n\xE3o encontrado");
+    return this.generateBatchShippingDocument([order]);
+  }
+  async generateBatchShippingDocument(orders) {
+    if (orders.length === 0) {
+      throw new Error("Nenhum pedido selecionado para impress\xE3o");
     }
-    const channel = await DB.getChannel(order.channel_id);
-    let adapter;
-    if (order.channel_id === "mercadolibre") adapter = new MercadoLibreAdapter(channel);
-    else if (order.channel_id === "shopee") adapter = new ShopeeAdapter(channel);
-    else adapter = new TikTokShopAdapter(channel);
-    const labelInfo = await adapter.getShippingLabel(order.remote_order_id, order);
-    const html = `
+    const carrierName = orders[0].shipping_service || "Log\xEDstica Integrada";
+    const trackingCode = orders[0].tracking_code || `BR-HUB-${Date.now()}`;
+    const pagesHtml = [];
+    for (let i = 0; i < orders.length; i += 2) {
+      const pair = orders.slice(i, i + 2);
+      const unitsHtml = pair.map((ord) => {
+        const trk = ord.tracking_code || `BR-HUB-${Math.floor(1e7 + Math.random() * 9e7)}`;
+        return this.renderSingleOrderUnit(ord, ord.shipping_service, trk);
+      }).join("\n<div class='cut-line'>- - - - - - - - - - - - - - - - - - - - - - - - - - - - - CORTE AQUI - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</div>\n");
+      pagesHtml.push(`
+        <div class="a4-sheet">
+          ${unitsHtml}
+        </div>
+      `);
+    }
+    const fullHtml = `
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
       <meta charset="UTF-8">
-      <title>Etiqueta de Envio - Pedido ${order.remote_order_id}</title>
+      <title>Etiquetas de Envio com Declara\xE7\xE3o de Conte\xFAdo (${orders.length} pedidos)</title>
       <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .label-container { width: 100mm; min-height: 140mm; background: #fff; border: 2px solid #1e293b; margin: 0 auto; padding: 12px; box-sizing: border-box; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
-        .channel-tag { font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .carrier { font-size: 13px; font-weight: bold; background: #000; color: #fff; padding: 3px 8px; border-radius: 4px; }
-        .barcode-section { text-align: center; margin: 12px 0; border: 1px dashed #cbd5e1; padding: 10px; }
-        .barcode-bars { height: 42px; background: repeating-linear-gradient(90deg, #000, #000 2px, #fff 2px, #fff 5px, #000 5px, #000 8px, #fff 8px, #fff 10px); width: 85%; margin: 0 auto; }
-        .tracking-code { font-family: monospace; font-size: 14px; font-weight: 700; margin-top: 6px; }
-        .section-box { border: 1px solid #000; padding: 8px; margin-bottom: 8px; font-size: 11px; line-height: 1.4; }
-        .section-title { font-weight: bold; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
-        .items-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
-        .items-table th, .items-table td { border: 1px solid #e2e8f0; padding: 3px 6px; text-align: left; }
-        .no-print-btn { display: block; margin: 20px auto; background: #2563eb; color: #fff; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        @page {
+          size: A4 portrait;
+          margin: 6mm;
+        }
+        * { box-sizing: border-box; }
+        body {
+          font-family: Arial, Helvetica, sans-serif;
+          background: #e2e8f0;
+          margin: 0;
+          padding: 15px;
+          color: #0f172a;
+        }
+        .top-toolbar {
+          max-width: 210mm;
+          margin: 0 auto 15px auto;
+          background: #1e293b;
+          color: #fff;
+          padding: 12px 20px;
+          border-radius: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .btn-print {
+          background: #10b981;
+          color: #fff;
+          border: none;
+          padding: 10px 22px;
+          font-size: 14px;
+          font-weight: bold;
+          border-radius: 8px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .btn-print:hover { background: #059669; }
+        .sheet-info { font-size: 13px; color: #cbd5e1; }
+
+        /* A4 Sheet format (210mm x 297mm) */
+        .a4-sheet {
+          width: 200mm;
+          min-height: 285mm;
+          background: #fff;
+          margin: 0 auto 20px auto;
+          padding: 6mm;
+          border: 1px solid #cbd5e1;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          page-break-after: always;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .cut-line {
+          text-align: center;
+          font-size: 9px;
+          color: #64748b;
+          letter-spacing: 2px;
+          margin: 4mm 0;
+          border-bottom: 1px dashed #94a3b8;
+          line-height: 0.1em;
+        }
+
+        /* Order Unit (Etiqueta + Declara\xE7\xE3o lado a lado) */
+        .order-unit {
+          width: 100%;
+          height: 134mm;
+          display: flex;
+          border: 1.5px solid #000;
+          background: #fff;
+          overflow: hidden;
+        }
+
+        /* Left side: Shipping Label */
+        .shipping-half {
+          width: 50%;
+          border-right: 1.5px solid #000;
+          padding: 6px 8px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .unit-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #000;
+          padding-bottom: 4px;
+        }
+        .channel-pill { font-weight: 800; font-size: 11px; }
+        .carrier-pill { background: #000; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 3px; }
+
+        .barcode-wrapper {
+          text-align: center;
+          margin: 3px 0;
+          padding: 4px;
+          border: 1px dashed #cbd5e1;
+        }
+        .barcode-graphic {
+          height: 34px;
+          width: 90%;
+          margin: 0 auto;
+          background: repeating-linear-gradient(90deg, #000 0px, #000 2px, #fff 2px, #fff 4px, #000 4px, #000 7px, #fff 7px, #fff 9px);
+        }
+        .tracking-text { font-family: monospace; font-size: 12px; font-weight: bold; margin-top: 3px; }
+        .remote-id { font-size: 8px; color: #475569; }
+
+        .box {
+          border: 1px solid #000;
+          padding: 5px;
+          font-size: 9px;
+          line-height: 1.35;
+        }
+        .box-title { font-weight: 900; font-size: 9px; border-bottom: 1px solid #cbd5e1; margin-bottom: 3px; }
+        .line-dest { font-size: 10px; font-weight: bold; }
+        .zip-highlight { font-weight: 900; font-size: 11px; margin-top: 2px; }
+        .doc-text { font-size: 8px; color: #475569; }
+
+        /* Right side: Declaration of Content */
+        .declaration-half {
+          width: 50%;
+          padding: 6px 8px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          font-size: 9px;
+          background: #fff;
+        }
+        .decl-title {
+          font-weight: 900;
+          text-align: center;
+          font-size: 11px;
+          letter-spacing: 0.5px;
+          border-bottom: 1.5px solid #000;
+          padding-bottom: 3px;
+        }
+        .decl-subbox {
+          border: 1px solid #000;
+          padding: 4px;
+          font-size: 8.5px;
+          line-height: 1.3;
+          margin-top: 3px;
+        }
+        .decl-header-row { display: flex; justify-content: space-between; }
+
+        .decl-items-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 8.5px;
+          margin-top: 4px;
+        }
+        .decl-items-table th, .decl-items-table td {
+          border: 1px solid #cbd5e1;
+          padding: 2px 4px;
+        }
+        .decl-items-table th { background: #f1f5f9; font-weight: bold; text-align: left; }
+
+        .decl-totals {
+          display: flex;
+          justify-content: space-between;
+          font-size: 9px;
+          margin-top: 2px;
+          padding: 3px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+        }
+        .decl-legal {
+          font-size: 7px;
+          color: #475569;
+          line-height: 1.2;
+          margin: 3px 0;
+          text-align: justify;
+        }
+        .signature-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          font-size: 8px;
+          padding-top: 4px;
+        }
+
         @media print {
           body { background: transparent; padding: 0; }
-          .no-print-btn { display: none; }
-          .label-container { border: 2px solid #000; page-break-after: always; }
+          .top-toolbar { display: none; }
+          .a4-sheet {
+            margin: 0;
+            padding: 4mm;
+            border: none;
+            box-shadow: none;
+            width: 100%;
+            height: 100%;
+          }
         }
       </style>
     </head>
     <body>
-      <button class="no-print-btn" onclick="window.print()">\u{1F5A8}\uFE0F Imprimir Etiqueta</button>
-      <div class="label-container">
-        <div class="header">
-          <div class="channel-tag">
-            ${order.channel_id === "mercadolibre" ? "\u{1F7E1} Mercado Livre" : order.channel_id === "shopee" ? "\u{1F7E0} Shopee" : "\u26AB TikTok Shop"}
-          </div>
-          <div class="carrier">${labelInfo.carrierName}</div>
-        </div>
-
-        <div class="barcode-section">
-          <div class="barcode-bars"></div>
-          <div class="tracking-code">${labelInfo.trackingCode}</div>
-          <div style="font-size: 9px; color: #64748b; margin-top: 2px;">C\xF3d. Rastreio / Pacote: ${order.remote_order_id}</div>
-        </div>
-
-        <div class="section-box">
-          <div class="section-title">DESTINAT\xC1RIO</div>
-          <div><strong>Nome:</strong> ${order.customer_name}</div>
-          <div><strong>Endere\xE7o:</strong> ${order.shipping_address.street}, ${order.shipping_address.number} ${order.shipping_address.complement ? "- " + order.shipping_address.complement : ""}</div>
-          <div><strong>Bairro:</strong> ${order.shipping_address.neighborhood} | <strong>Cidade:</strong> ${order.shipping_address.city} - ${order.shipping_address.state}</div>
-          <div><strong>CEP:</strong> ${order.shipping_address.zip_code}</div>
-          <div><strong>Doc:</strong> ${order.customer_document}</div>
-        </div>
-
-        <div class="section-box">
-          <div class="section-title">REMETENTE</div>
-          <div><strong>Empresa:</strong> Minha Loja Hub Multi-Canal LTDA</div>
-          <div><strong>Endere\xE7o:</strong> Centro de Distribui\xE7\xE3o / Expedi\xE7\xE3o</div>
-          <div><strong>Origem:</strong> S\xE3o Paulo - SP</div>
-        </div>
-
-        <div class="section-box">
-          <div class="section-title">CONTE\xDADO DO PACOTE (DECLARA\xC7\xC3O DE CONTE\xDADO)</div>
-          <table class="items-table">
-            <thead>
-              <tr><th>Item</th><th>SKU</th><th>Qtd</th><th>Valor Unit.</th></tr>
-            </thead>
-            <tbody>
-              ${order.items.map((it) => `
-                <tr>
-                  <td>${it.title.slice(0, 30)}</td>
-                  <td><strong>${it.sku}</strong></td>
-                  <td>${it.quantity}</td>
-                  <td>R$ ${it.unit_price.toFixed(2)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <div style="text-align: right; margin-top: 4px; font-weight: bold; font-size: 11px;">
-            Total: R$ ${order.total_amount.toFixed(2)}
+      <div class="top-toolbar">
+        <div>
+          <strong style="font-size: 16px;">Central de Impress\xE3o de Etiquetas</strong>
+          <div class="sheet-info">
+            Total de Pedidos: <strong>${orders.length}</strong> \u2022 Folhas A4 necess\xE1rias: <strong>${Math.ceil(orders.length / 2)}</strong> (2 pedidos completos por folha)
           </div>
         </div>
+        <button class="btn-print" onclick="window.print()">
+          \u{1F5A8}\uFE0F Imprimir Todas as Folhas (${orders.length})
+        </button>
       </div>
+
+      ${pagesHtml.join("\n")}
     </body>
     </html>
     `;
     return {
-      ...labelInfo,
-      htmlContent: html
+      orderId: orders[0].id,
+      trackingCode,
+      carrierName,
+      barcode: trackingCode,
+      htmlContent: fullHtml
     };
   }
   async markOrderAsShipped(orderId) {
@@ -1027,8 +1340,65 @@ var OrderService = class {
     );
     return true;
   }
+  async markBatchOrdersAsShipped(orderIds) {
+    let count = 0;
+    for (const id of orderIds) {
+      const ok = await this.markOrderAsShipped(id);
+      if (ok) count++;
+    }
+    return count;
+  }
 };
 var orderService = new OrderService();
+
+// src/services/pricing.ts
+function calculatePriceForChannel(channel, params) {
+  const costPrice = Math.max(0, Number(params.cost_price) || 0);
+  const packagingCost = Math.max(0, Number(params.packaging_cost) || 0);
+  const otherCosts = Math.max(0, Number(params.other_costs) || 0);
+  const taxPercent = Math.max(0, Number(params.tax_percent) || 0) / 100;
+  const totalCost = costPrice + packagingCost + otherCosts;
+  const feePercent = (Number(channel.fee_percent) || 16) / 100;
+  const fixedFee = Number(channel.fixed_fee) || 0;
+  let suggestedPrice = 0;
+  let netProfitAmount = 0;
+  if (params.target_profit_type === "fixed") {
+    netProfitAmount = Math.max(0, Number(params.target_profit_value) || 0);
+    const denominator = 1 - (feePercent + taxPercent);
+    if (denominator <= 0.05) {
+      suggestedPrice = (totalCost + fixedFee + netProfitAmount) / 0.5;
+    } else {
+      suggestedPrice = (totalCost + fixedFee + netProfitAmount) / denominator;
+    }
+  } else {
+    const profitMargin = Math.min(0.7, Math.max(0.01, (Number(params.target_profit_value) || 25) / 100));
+    const denominator = 1 - (feePercent + taxPercent + profitMargin);
+    if (denominator <= 0.05) {
+      suggestedPrice = (totalCost + fixedFee) / 0.3;
+    } else {
+      suggestedPrice = (totalCost + fixedFee) / denominator;
+    }
+    netProfitAmount = suggestedPrice * profitMargin;
+  }
+  suggestedPrice = Math.round(suggestedPrice * 100) / 100;
+  const marketplaceFeeAmount = suggestedPrice * feePercent + fixedFee;
+  const taxAmount = suggestedPrice * taxPercent;
+  const actualProfit = suggestedPrice - totalCost - marketplaceFeeAmount - taxAmount;
+  const actualMarginPercent = suggestedPrice > 0 ? actualProfit / suggestedPrice * 100 : 0;
+  return {
+    channel_id: channel.id,
+    channel_name: channel.name,
+    total_cost: Number(totalCost.toFixed(2)),
+    fee_percent: Number((feePercent * 100).toFixed(1)),
+    fixed_fee: Number(fixedFee.toFixed(2)),
+    tax_percent: Number((taxPercent * 100).toFixed(1)),
+    suggested_price: Number(suggestedPrice.toFixed(2)),
+    marketplace_fee_amount: Number(marketplaceFeeAmount.toFixed(2)),
+    tax_amount: Number(taxAmount.toFixed(2)),
+    net_profit_amount: Number(actualProfit.toFixed(2)),
+    net_profit_margin_percent: Number(actualMarginPercent.toFixed(1))
+  };
+}
 
 // src/node-server.ts
 var PORT = Number(process.env.PORT) || 3e3;
@@ -1144,6 +1514,37 @@ var server = import_node_http.default.createServer(async (req, res) => {
       const orders = await DB.getOrders(status);
       return sendJson(res, orders);
     }
+    if (pathname === "/api/orders/batch-labels") {
+      let orderIds = [];
+      if (method === "GET") {
+        const idsParam = urlObj.searchParams.get("ids");
+        orderIds = idsParam ? idsParam.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      } else if (method === "POST") {
+        const body = await parseBody(req);
+        orderIds = Array.isArray(body.orderIds) ? body.orderIds : [];
+      }
+      if (orderIds.length === 0) {
+        return sendJson(res, { error: "Nenhum pedido selecionado para impress\xE3o" }, 400);
+      }
+      const orders = await DB.getOrdersByIds(orderIds);
+      if (orders.length === 0) {
+        return sendJson(res, { error: "Nenhum pedido v\xE1lido encontrado" }, 404);
+      }
+      const doc = await orderService.generateBatchShippingDocument(orders);
+      if (method === "GET" || urlObj.searchParams.get("format") === "html") {
+        return sendHtml(res, doc.htmlContent || "Etiquetas indispon\xEDveis");
+      }
+      return sendJson(res, doc);
+    }
+    if (pathname === "/api/orders/batch-ship" && method === "POST") {
+      const body = await parseBody(req);
+      const orderIds = Array.isArray(body.orderIds) ? body.orderIds : [];
+      if (orderIds.length === 0) {
+        return sendJson(res, { error: "Nenhum pedido selecionado para despacho" }, 400);
+      }
+      const count = await orderService.markBatchOrdersAsShipped(orderIds);
+      return sendJson(res, { success: true, count });
+    }
     if (pathname.startsWith("/api/orders/") && pathname.endsWith("/label") && method === "GET") {
       const parts = pathname.split("/");
       const orderId = parts[3];
@@ -1159,6 +1560,19 @@ var server = import_node_http.default.createServer(async (req, res) => {
       const success = await orderService.markOrderAsShipped(orderId);
       const ord = await DB.getOrderById(orderId);
       return sendJson(res, { success, order: ord });
+    }
+    if (pathname === "/api/pricing/calculate" && method === "POST") {
+      const body = await parseBody(req);
+      const channels = await DB.getChannels();
+      const results = channels.map((ch) => calculatePriceForChannel(ch, {
+        cost_price: Number(body.cost_price) || 0,
+        packaging_cost: Number(body.packaging_cost) || 0,
+        other_costs: Number(body.other_costs) || 0,
+        tax_percent: Number(body.tax_percent) || 0,
+        target_profit_type: body.target_profit_type === "fixed" ? "fixed" : "percent",
+        target_profit_value: Number(body.target_profit_value) || 25
+      }));
+      return sendJson(res, { success: true, results });
     }
     if (pathname === "/api/orders/simulate" && method === "POST") {
       const body = await parseBody(req);

@@ -23,6 +23,9 @@ export const DB = {
       name: r.name,
       enabled: Boolean(r.enabled),
       mode: r.mode,
+      fee_percent: Number(r.fee_percent || 16.0),
+      fixed_fee: Number(r.fixed_fee || 5.0),
+      free_shipping_threshold: Number(r.free_shipping_threshold || 79.0),
       credentials: typeof r.credentials_json === "string" ? JSON.parse(r.credentials_json || "{}") : (r.credentials_json || {}),
       last_sync_at: r.last_sync_at ? new Date(r.last_sync_at).toISOString() : null
     }));
@@ -37,6 +40,9 @@ export const DB = {
       name: r.name,
       enabled: Boolean(r.enabled),
       mode: r.mode,
+      fee_percent: Number(r.fee_percent || 16.0),
+      fixed_fee: Number(r.fixed_fee || 5.0),
+      free_shipping_threshold: Number(r.free_shipping_threshold || 79.0),
       credentials: typeof r.credentials_json === "string" ? JSON.parse(r.credentials_json || "{}") : (r.credentials_json || {}),
       last_sync_at: r.last_sync_at ? new Date(r.last_sync_at).toISOString() : null
     };
@@ -49,12 +55,14 @@ export const DB = {
     const enabled = data.enabled !== undefined ? data.enabled : current.enabled;
     const mode = data.mode || current.mode;
     const credentials = data.credentials || current.credentials;
+    const fee_percent = data.fee_percent !== undefined ? data.fee_percent : current.fee_percent;
+    const fixed_fee = data.fixed_fee !== undefined ? data.fixed_fee : current.fixed_fee;
 
     await pool.query(
       `UPDATE hub_channels
-       SET enabled = $1, mode = $2, credentials_json = $3, last_sync_at = NOW()
-       WHERE id = $4`,
-      [enabled, mode, JSON.stringify(credentials), id]
+       SET enabled = $1, mode = $2, credentials_json = $3, fee_percent = $4, fixed_fee = $5, last_sync_at = NOW()
+       WHERE id = $6`,
+      [enabled, mode, JSON.stringify(credentials), fee_percent, fixed_fee, id]
     );
   },
 
@@ -86,7 +94,13 @@ export const DB = {
       title: r.title,
       description: r.description || "",
       base_price: Number(r.base_price),
+      cost_price: Number(r.cost_price || 0),
+      packaging_cost: Number(r.packaging_cost || 2.5),
+      other_costs: Number(r.other_costs || 0),
+      tax_percent: Number(r.tax_percent || 6.0),
+      target_profit_percent: Number(r.target_profit_percent || 30.0),
       stock: Number(r.stock),
+      min_stock: Number(r.min_stock || 5),
       weight_kg: Number(r.weight_kg),
       height_cm: Number(r.height_cm),
       width_cm: Number(r.width_cm),
@@ -122,7 +136,13 @@ export const DB = {
       title: r.title,
       description: r.description || "",
       base_price: Number(r.base_price),
+      cost_price: Number(r.cost_price || 0),
+      packaging_cost: Number(r.packaging_cost || 2.5),
+      other_costs: Number(r.other_costs || 0),
+      tax_percent: Number(r.tax_percent || 6.0),
+      target_profit_percent: Number(r.target_profit_percent || 30.0),
       stock: Number(r.stock),
+      min_stock: Number(r.min_stock || 5),
       weight_kg: Number(r.weight_kg),
       height_cm: Number(r.height_cm),
       width_cm: Number(r.width_cm),
@@ -142,15 +162,24 @@ export const DB = {
 
   async createProduct(data: Omit<Product, "id" | "created_at" | "updated_at">): Promise<Product> {
     const res = await pool.query(
-      `INSERT INTO hub_products (sku, title, description, base_price, stock, weight_kg, height_cm, width_cm, length_cm, images_json)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id`,
+      `INSERT INTO hub_products (
+        sku, title, description, base_price, cost_price, packaging_cost, other_costs,
+        tax_percent, target_profit_percent, stock, min_stock, weight_kg, height_cm, width_cm, length_cm, images_json
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      RETURNING id`,
       [
         data.sku.trim(),
         data.title.trim(),
         data.description || "",
         data.base_price,
+        data.cost_price || 0,
+        data.packaging_cost || 2.5,
+        data.other_costs || 0,
+        data.tax_percent || 6.0,
+        data.target_profit_percent || 30.0,
         data.stock,
+        data.min_stock || 5,
         data.weight_kg || 0.3,
         data.height_cm || 10,
         data.width_cm || 15,
@@ -169,16 +198,23 @@ export const DB = {
 
     await pool.query(
       `UPDATE hub_products
-       SET sku = $1, title = $2, description = $3, base_price = $4, stock = $5,
-           weight_kg = $6, height_cm = $7, width_cm = $8, length_cm = $9,
-           images_json = $10, updated_at = NOW()
-       WHERE id = $11`,
+       SET sku = $1, title = $2, description = $3, base_price = $4,
+           cost_price = $5, packaging_cost = $6, other_costs = $7, tax_percent = $8,
+           target_profit_percent = $9, stock = $10, min_stock = $11, weight_kg = $12,
+           height_cm = $13, width_cm = $14, length_cm = $15, images_json = $16, updated_at = NOW()
+       WHERE id = $17`,
       [
         data.sku !== undefined ? data.sku.trim() : existing.sku,
         data.title !== undefined ? data.title.trim() : existing.title,
         data.description !== undefined ? data.description : existing.description,
         data.base_price !== undefined ? data.base_price : existing.base_price,
+        data.cost_price !== undefined ? data.cost_price : existing.cost_price,
+        data.packaging_cost !== undefined ? data.packaging_cost : existing.packaging_cost,
+        data.other_costs !== undefined ? data.other_costs : existing.other_costs,
+        data.tax_percent !== undefined ? data.tax_percent : existing.tax_percent,
+        data.target_profit_percent !== undefined ? data.target_profit_percent : existing.target_profit_percent,
         data.stock !== undefined ? data.stock : existing.stock,
+        data.min_stock !== undefined ? data.min_stock : existing.min_stock,
         data.weight_kg !== undefined ? data.weight_kg : existing.weight_kg,
         data.height_cm !== undefined ? data.height_cm : existing.height_cm,
         data.width_cm !== undefined ? data.width_cm : existing.width_cm,
@@ -272,6 +308,27 @@ export const DB = {
     };
   },
 
+  async getOrdersByIds(ids: string[]): Promise<Order[]> {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    const res = await pool.query(`SELECT * FROM hub_orders WHERE id IN (${placeholders}) ORDER BY created_at DESC`, ids);
+    return res.rows.map((r: any) => ({
+      id: r.id,
+      channel_id: r.channel_id,
+      remote_order_id: r.remote_order_id,
+      customer_name: r.customer_name,
+      customer_document: r.customer_document || "",
+      items: typeof r.items_json === "string" ? JSON.parse(r.items_json || "[]") : (r.items_json || []),
+      total_amount: Number(r.total_amount),
+      shipping_address: typeof r.shipping_address_json === "string" ? JSON.parse(r.shipping_address_json || "{}") : (r.shipping_address_json || {}),
+      shipping_label_url: r.shipping_label_url || "",
+      tracking_code: r.tracking_code || "",
+      shipping_service: r.shipping_service,
+      status: r.status,
+      created_at: new Date(r.created_at).toISOString()
+    }));
+  },
+
   async createOrder(order: Omit<Order, "id" | "created_at">): Promise<Order> {
     const res = await pool.query(
       `INSERT INTO hub_orders (channel_id, remote_order_id, customer_name, customer_document, items_json, total_amount, shipping_address_json, shipping_label_url, tracking_code, shipping_service, status)
@@ -328,20 +385,36 @@ export const DB = {
   },
 
   async getStats() {
-    const [pCount, oCount, rCount, revCount, sCount] = await Promise.all([
+    const [pCount, oCount, rCount, revCount, stockStats] = await Promise.all([
       pool.query("SELECT COUNT(*) as c FROM hub_products"),
       pool.query("SELECT COUNT(*) as c FROM hub_orders"),
       pool.query("SELECT COUNT(*) as c FROM hub_orders WHERE status = 'ready_to_ship'"),
       pool.query("SELECT COALESCE(SUM(total_amount), 0) as s FROM hub_orders WHERE status != 'cancelled'"),
-      pool.query("SELECT COUNT(*) as c FROM hub_products WHERE stock <= 5")
+      pool.query(`
+        SELECT 
+          COUNT(*) FILTER (WHERE stock <= min_stock) as low_stock_count,
+          COALESCE(SUM(stock * cost_price), 0) as total_cost_value,
+          COALESCE(SUM(stock * base_price), 0) as total_retail_value,
+          COALESCE(SUM(stock), 0) as total_units
+        FROM hub_products
+      `)
     ]);
+
+    const stock = stockStats.rows[0];
+    const costVal = Number(Number(stock.total_cost_value).toFixed(2));
+    const retailVal = Number(Number(stock.total_retail_value).toFixed(2));
+    const potentialProfit = Number((retailVal - costVal).toFixed(2));
 
     return {
       totalProducts: Number(pCount.rows[0].c),
       totalOrders: Number(oCount.rows[0].c),
       readyToShip: Number(rCount.rows[0].c),
       totalRevenue: Number(Number(revCount.rows[0].s).toFixed(2)),
-      lowStockCount: Number(sCount.rows[0].c)
+      lowStockCount: Number(stock.low_stock_count || 0),
+      totalCostValue: costVal,
+      totalRetailValue: retailVal,
+      potentialProfit: potentialProfit,
+      totalUnitsInStock: Number(stock.total_units || 0)
     };
   }
 };

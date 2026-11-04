@@ -43,7 +43,7 @@ export class CatalogService {
       }
 
       const adapter = await this.getAdapter(channelId);
-      const customPrice = setting?.customPrice || product.base_price;
+      const customPrice = (setting as any)?.price || setting?.customPrice || product.base_price;
       const categoryId = setting?.categoryId;
 
       try {

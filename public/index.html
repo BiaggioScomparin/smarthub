@@ -122,6 +122,33 @@
         </div>
       </div>
 
+      <!-- Financial & Inventory Health Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl">
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Custo em Estoque</p>
+          <h4 id="stat-cost-value" class="text-xl font-bold text-slate-200 mt-1">R$ 0,00</h4>
+          <p class="text-[11px] text-slate-500 mt-1">Investimento imobilizado</p>
+        </div>
+
+        <div class="bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl">
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Valor de Venda em Estoque</p>
+          <h4 id="stat-retail-value" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</h4>
+          <p class="text-[11px] text-slate-500 mt-1">Potencial bruto de faturamento</p>
+        </div>
+
+        <div class="bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl">
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Lucro Projetado em Estoque</p>
+          <h4 id="stat-potential-profit" class="text-xl font-bold text-teal-400 mt-1">R$ 0,00</h4>
+          <p class="text-[11px] text-slate-500 mt-1">Margem após custos de produtos</p>
+        </div>
+
+        <div class="bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl">
+          <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Estoque Crítico / Baixo</p>
+          <h4 id="stat-low-stock" class="text-xl font-bold text-rose-400 mt-1">0 produtos</h4>
+          <p class="text-[11px] text-slate-500 mt-1">Abaixo do estoque mínimo</p>
+        </div>
+      </div>
+
       <!-- Channel Status Row -->
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
         <h3 class="font-bold text-white text-base mb-4 flex items-center">
@@ -168,10 +195,12 @@
             <thead class="bg-slate-800/90 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700">
               <tr>
                 <th class="px-5 py-4">Produto</th>
-                <th class="px-4 py-4">SKU</th>
-                <th class="px-4 py-4">Preço Base</th>
+                <th class="px-3 py-4">SKU</th>
+                <th class="px-3 py-4">Custo Total</th>
+                <th class="px-3 py-4">Preço Base</th>
+                <th class="px-3 py-4">Margem Est.</th>
                 <th class="px-4 py-4">Estoque Central</th>
-                <th class="px-5 py-4">Canais Conectados</th>
+                <th class="px-4 py-4">Canais Conectados</th>
                 <th class="px-5 py-4 text-right">Ações</th>
               </tr>
             </thead>
@@ -188,13 +217,38 @@
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 class="text-xl font-bold text-white">Central de Expedição e Envio</h2>
-          <p class="text-sm text-slate-400">Pedidos de todos os canais prontos para embalagem, etiquetagem e despacho.</p>
+          <p class="text-sm text-slate-400">Impressão unificada em folhas A4 (2 etiquetas + Declaração de Conteúdo por folha).</p>
         </div>
         <!-- Status Filter -->
         <div class="flex space-x-2">
           <button onclick="filterOrders('ready_to_ship')" id="order-filter-ready" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950">Aguardando Envio</button>
           <button onclick="filterOrders('shipped')" id="order-filter-shipped" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white">Despachados</button>
           <button onclick="filterOrders('all')" id="order-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white">Todos</button>
+        </div>
+      </div>
+
+      <!-- Batch Actions Toolbar -->
+      <div id="batch-toolbar" class="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div class="flex items-center space-x-3">
+          <label class="flex items-center space-x-2 cursor-pointer select-none">
+            <input type="checkbox" id="select-all-orders" onchange="toggleSelectAllOrders(this.checked)" class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-0">
+            <span class="text-xs font-bold text-white">Selecionar Todos</span>
+          </label>
+          <span class="text-xs text-indigo-200">
+            • <strong id="batch-selected-count" class="text-amber-400 font-mono">0</strong> selecionados
+            <span id="batch-sheets-count" class="text-slate-400 text-[11px] ml-1">(0 folhas A4)</span>
+          </span>
+        </div>
+
+        <div class="flex items-center space-x-2 w-full sm:w-auto">
+          <button onclick="printSelectedBatchLabels()" id="btn-batch-print" disabled class="flex-1 sm:flex-none inline-flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-500/20 transition">
+            <i class="fa-solid fa-print"></i>
+            <span>Imprimir Selecionadas (2 por folha A4 + Declaração)</span>
+          </button>
+          <button onclick="shipSelectedBatchOrders()" id="btn-batch-ship" disabled class="inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition">
+            <i class="fa-solid fa-truck-fast"></i>
+            <span>Despachar em Lote</span>
+          </button>
         </div>
       </div>
 
@@ -235,6 +289,16 @@
                   <option value="sandbox">Modo Simulação (Testes)</option>
                   <option value="production">Modo Produção (API Oficial)</option>
                 </select>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Comissão (%)</label>
+                  <input type="number" step="0.1" name="fee_percent" value="17" placeholder="17" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Taxa Fixa (R$)</label>
+                  <input type="number" step="0.01" name="fixed_fee" value="6.00" placeholder="6.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+                </div>
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1">App ID (Client ID)</label>
@@ -287,6 +351,16 @@
                   <option value="production">Modo Produção (API Oficial)</option>
                 </select>
               </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Comissão (%)</label>
+                  <input type="number" step="0.1" name="fee_percent" value="20" placeholder="20" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Taxa Fixa (R$)</label>
+                  <input type="number" step="0.01" name="fixed_fee" value="4.00" placeholder="4.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+                </div>
+              </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1">Partner ID</label>
                 <input type="text" name="partner_id" placeholder="ex: 1058291" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
@@ -338,6 +412,16 @@
                   <option value="production">Modo Produção (API Oficial)</option>
                 </select>
               </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Comissão (%)</label>
+                  <input type="number" step="0.1" name="fee_percent" value="14" placeholder="14" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Taxa Fixa (R$)</label>
+                  <input type="number" step="0.01" name="fixed_fee" value="3.00" placeholder="3.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+                </div>
+              </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1">App Key</label>
                 <input type="text" name="app_key" placeholder="ex: 6d5g789..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
@@ -369,16 +453,16 @@
 
   </main>
 
-  <!-- MODAL: CADASTRAR PRODUTO (1-CLICK MULTI-PUBLISH) -->
+  <!-- MODAL: CADASTRAR PRODUTO (1-CLICK MULTI-PUBLISH COM PRECIFICAÇÃO INTELIGENTE) -->
   <div id="modal-product" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-5">
       <div class="flex justify-between items-center pb-3 border-b border-slate-700">
         <div>
           <h3 class="text-lg font-bold text-white flex items-center">
-            <i class="fa-solid fa-cloud-arrow-up text-indigo-400 mr-2"></i>
-            Cadastrar & Publicar nos 3 Marketplaces
+            <i class="fa-solid fa-calculator text-indigo-400 mr-2"></i>
+            Cadastrar Produto & Calculadora de Margem
           </h3>
-          <p class="text-xs text-slate-400">Preencha os dados uma vez para sincronizar catálogo e estoque.</p>
+          <p class="text-xs text-slate-400">Defina o lucro desejado e os preços serão ajustados automaticamente para cada marketplace.</p>
         </div>
         <button onclick="closeProductModal()" class="text-slate-400 hover:text-white text-xl">
           <i class="fa-solid fa-xmark"></i>
@@ -386,7 +470,8 @@
       </div>
 
       <form id="product-form" onsubmit="handleProductSubmit(event)" class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Informações Básicas -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="sm:col-span-2">
             <label class="block text-xs font-semibold text-slate-400 mb-1">Título do Anúncio *</label>
             <input type="text" id="p-title" required placeholder="Ex: Smartwatch Ultra Resistente à Água" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
@@ -398,18 +483,135 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição</label>
-          <textarea id="p-desc" rows="3" placeholder="Detalhes, benefícios, compatibilidade..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500"></textarea>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Descrição do Produto</label>
+          <textarea id="p-desc" rows="2" placeholder="Detalhes técnicos, diferenciais e compatibilidade..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500"></textarea>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Preço Base (R$) *</label>
-            <input type="number" step="0.01" id="p-price" required placeholder="129.90" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+        <!-- Seção: Custos & Formação de Preço -->
+        <div class="bg-slate-900/80 border border-slate-700/80 p-4 rounded-xl space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-800 pb-2">
+            <span class="text-xs font-bold text-amber-400 uppercase tracking-wide flex items-center">
+              <i class="fa-solid fa-coins mr-1.5"></i> 1. Custos Diretos & Margem Desejada
+            </span>
+            <span class="text-xs text-slate-400">
+              Custo Total Base: <strong id="calc-total-cost" class="text-white font-mono">R$ 0,00</strong>
+            </span>
           </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Preço de Custo (R$) *</label>
+              <input type="number" step="0.01" id="p-cost" required value="50.00" oninput="onCostInputsChanged()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-semibold text-white focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Embalagem (R$)</label>
+              <input type="number" step="0.01" id="p-packaging" value="4.00" oninput="onCostInputsChanged()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Custos Diversos (R$)</label>
+              <input type="number" step="0.01" id="p-other" value="3.00" oninput="onCostInputsChanged()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Imposto / Simples (%)</label>
+              <input type="number" step="0.1" id="p-tax" value="6.0" oninput="onCostInputsChanged()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:border-amber-400">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-400 mb-1">Tipo de Lucro Alvo</label>
+              <select id="p-profit-type" onchange="onCostInputsChanged()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:border-amber-400">
+                <option value="percent">Margem Líquida Desejada (%)</option>
+                <option value="fixed">Lucro Líquido Fixo em Reais (R$)</option>
+              </select>
+            </div>
+            <div>
+              <label id="lbl-profit-val" class="block text-[11px] font-semibold text-slate-400 mb-1">Lucro Desejado (% sobre venda)</label>
+              <input type="number" step="0.1" id="p-profit-val" value="25.0" oninput="onCostInputsChanged()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold text-emerald-400 focus:border-emerald-400">
+            </div>
+          </div>
+
+          <!-- Dynamic Pricing Simulation Cards -->
+          <div class="pt-2">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-2 flex items-center justify-between">
+              <span>Preço Ajustado por Marketplace (Garante seu lucro livre de taxas):</span>
+              <span class="text-[10px] text-slate-500 font-normal">Cálculo em tempo real</span>
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Mercado Livre Card -->
+              <div class="bg-slate-800/80 border border-amber-500/40 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-xs text-amber-400">🟡 Mercado Livre</span>
+                  <span class="text-[10px] text-slate-400 font-mono">17% + R$6,00</span>
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400">Preço de Venda (R$)</label>
+                  <input type="number" step="0.01" id="p-price-ml" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-bold text-white focus:border-amber-400">
+                </div>
+                <div class="text-[11px] space-y-0.5 text-slate-400 border-t border-slate-700/60 pt-1.5">
+                  <div class="flex justify-between"><span>Taxas Canal:</span><span id="calc-fee-ml" class="font-mono text-rose-300">-R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Imposto:</span><span id="calc-tax-ml" class="font-mono text-slate-300">-R$ 0,00</span></div>
+                  <div class="flex justify-between font-bold text-emerald-400 pt-0.5 border-t border-slate-700/30">
+                    <span>Lucro Líquido:</span><span id="calc-profit-ml">R$ 0,00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shopee Card -->
+              <div class="bg-slate-800/80 border border-orange-500/40 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-xs text-orange-400">🟠 Shopee</span>
+                  <span class="text-[10px] text-slate-400 font-mono">20% + R$4,00</span>
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400">Preço de Venda (R$)</label>
+                  <input type="number" step="0.01" id="p-price-shopee" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-bold text-white focus:border-orange-400">
+                </div>
+                <div class="text-[11px] space-y-0.5 text-slate-400 border-t border-slate-700/60 pt-1.5">
+                  <div class="flex justify-between"><span>Taxas Canal:</span><span id="calc-fee-shopee" class="font-mono text-rose-300">-R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Imposto:</span><span id="calc-tax-shopee" class="font-mono text-slate-300">-R$ 0,00</span></div>
+                  <div class="flex justify-between font-bold text-emerald-400 pt-0.5 border-t border-slate-700/30">
+                    <span>Lucro Líquido:</span><span id="calc-profit-shopee">R$ 0,00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TikTok Card -->
+              <div class="bg-slate-800/80 border border-rose-500/40 rounded-xl p-3 space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-xs text-rose-400">⚫ TikTok Shop</span>
+                  <span class="text-[10px] text-slate-400 font-mono">14% + R$3,00</span>
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400">Preço de Venda (R$)</label>
+                  <input type="number" step="0.01" id="p-price-tiktok" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-bold text-white focus:border-rose-400">
+                </div>
+                <div class="text-[11px] space-y-0.5 text-slate-400 border-t border-slate-700/60 pt-1.5">
+                  <div class="flex justify-between"><span>Taxas Canal:</span><span id="calc-fee-tiktok" class="font-mono text-rose-300">-R$ 0,00</span></div>
+                  <div class="flex justify-between"><span>Imposto:</span><span id="calc-tax-tiktok" class="font-mono text-slate-300">-R$ 0,00</span></div>
+                  <div class="flex justify-between font-bold text-emerald-400 pt-0.5 border-t border-slate-700/30">
+                    <span>Lucro Líquido:</span><span id="calc-profit-tiktok">R$ 0,00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seção: Estoque & Logística -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Estoque Inicial *</label>
-            <input type="number" id="p-stock" required placeholder="20" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+            <input type="number" id="p-stock" required value="20" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-bold text-white focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Estoque Mínimo (Alerta)</label>
+            <input type="number" id="p-min-stock" required value="5" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Preço Base Central (R$)</label>
+            <input type="number" step="0.01" id="p-price" required value="129.90" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Peso (kg)</label>
@@ -426,7 +628,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">URL da Imagem</label>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">URL da Imagem do Produto</label>
           <input type="url" id="p-image" placeholder="https://..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500">
         </div>
 
@@ -453,7 +655,7 @@
           <button type="button" onclick="closeProductModal()" class="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-medium text-sm">
             Cancelar
           </button>
-          <button type="submit" id="btn-save-product" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2 rounded-xl text-sm shadow-lg shadow-indigo-500/20 transition flex items-center space-x-2">
+          <button type="submit" id="btn-save-product" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-indigo-500/20 transition flex items-center space-x-2">
             <i class="fa-solid fa-cloud-arrow-up"></i>
             <span>Salvar & Publicar Agora</span>
           </button>

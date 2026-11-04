@@ -6,6 +6,7 @@ import type { ChannelId } from "./types.ts";
 import { catalogService } from "./services/catalog.ts";
 import { inventoryService } from "./services/inventory.ts";
 import { orderService } from "./services/orders.ts";
+import { calculatePriceForChannel } from "./services/pricing.ts";
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -146,6 +147,44 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, orders);
     }
 
+    // Batch Shipping Labels (with Declaração de Conteúdo, 2 per A4 sheet)
+    if (pathname === "/api/orders/batch-labels") {
+      let orderIds: string[] = [];
+      if (method === "GET") {
+        const idsParam = urlObj.searchParams.get("ids");
+        orderIds = idsParam ? idsParam.split(",").map(s => s.trim()).filter(Boolean) : [];
+      } else if (method === "POST") {
+        const body = await parseBody(req);
+        orderIds = Array.isArray(body.orderIds) ? body.orderIds : [];
+      }
+
+      if (orderIds.length === 0) {
+        return sendJson(res, { error: "Nenhum pedido selecionado para impressão" }, 400);
+      }
+
+      const orders = await DB.getOrdersByIds(orderIds);
+      if (orders.length === 0) {
+        return sendJson(res, { error: "Nenhum pedido válido encontrado" }, 404);
+      }
+
+      const doc = await orderService.generateBatchShippingDocument(orders);
+      if (method === "GET" || urlObj.searchParams.get("format") === "html") {
+        return sendHtml(res, doc.htmlContent || "Etiquetas indisponíveis");
+      }
+      return sendJson(res, doc);
+    }
+
+    // Batch Ship Orders
+    if (pathname === "/api/orders/batch-ship" && method === "POST") {
+      const body = await parseBody(req);
+      const orderIds = Array.isArray(body.orderIds) ? body.orderIds : [];
+      if (orderIds.length === 0) {
+        return sendJson(res, { error: "Nenhum pedido selecionado para despacho" }, 400);
+      }
+      const count = await orderService.markBatchOrdersAsShipped(orderIds);
+      return sendJson(res, { success: true, count });
+    }
+
     if (pathname.startsWith("/api/orders/") && pathname.endsWith("/label") && method === "GET") {
       const parts = pathname.split("/");
       const orderId = parts[3];
@@ -162,6 +201,21 @@ const server = http.createServer(async (req, res) => {
       const success = await orderService.markOrderAsShipped(orderId);
       const ord = await DB.getOrderById(orderId);
       return sendJson(res, { success, order: ord });
+    }
+
+    // Smart Pricing Calculation for Channels
+    if (pathname === "/api/pricing/calculate" && method === "POST") {
+      const body = await parseBody(req);
+      const channels = await DB.getChannels();
+      const results = channels.map(ch => calculatePriceForChannel(ch, {
+        cost_price: Number(body.cost_price) || 0,
+        packaging_cost: Number(body.packaging_cost) || 0,
+        other_costs: Number(body.other_costs) || 0,
+        tax_percent: Number(body.tax_percent) || 0,
+        target_profit_type: body.target_profit_type === "fixed" ? "fixed" : "percent",
+        target_profit_value: Number(body.target_profit_value) || 25
+      }));
+      return sendJson(res, { success: true, results });
     }
 
     // Simulate order
