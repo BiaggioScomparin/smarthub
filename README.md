@@ -1,70 +1,53 @@
-# 📦 Hub de Integração Omnichannel
+# 📦 SmartHub - Hub de Integração Omnichannel
 ### Mercado Livre • Shopee • TikTok Shop
 
 Sistema desenvolvido sob medida para gerenciar vendas, unificar o catálogo de produtos e centralizar a expedição/etiquetas de envio em múltiplos marketplaces.
 
 ---
 
-## 🎯 Principais Funcionalidades
+## 🏗️ Arquitetura & Banco de Dados na VPS
 
-1. **Catálogo Único & Publicação 1-Click (*Multi-Publish*)**:
-   - Cadastre o produto uma única vez (Título, SKU, Preço Base, Estoque, Dimensões e Fotos).
-   - O sistema publica automaticamente nos 3 canais conectados.
-2. **Sincronização de Estoque em Tempo Real**:
-   - Vendeu no Mercado Livre $\rightarrow$ o estoque local é atualizado e disparado instantaneamente para a Shopee e o TikTok Shop, evitando vendas sem estoque (*overselling*).
-3. **Central de Expedição e Envio (*Order & Shipping Hub*)**:
-   - Todos os pedidos dos 3 marketplaces em uma tela unificada.
-   - **Impressão de Etiquetas de Envio** com 1 clique (formatada para papel A4 ou etiquetas térmicas com código de barras, dados do destinatário e declaração de conteúdo).
-   - Botão **"Despachar"** para atualizar o status e código de rastreamento no marketplace de origem.
-4. **Simulador de Vendas Integrado**:
-   - Botão **"Simular Venda"** no cabeçalho para testar em tempo real a recepção de pedidos, baixa de estoque sincronizada e impressão da etiqueta.
-5. **Modos de Operação (Simulação vs. Produção)**:
-   - Funciona imediatamente em **Modo Simulação (Sandbox)** para você testar todo o fluxo de trabalho.
-   - Basta inserir suas credenciais oficiais de desenvolvedor para mudar para o **Modo Produção**.
+- **Banco de Dados**: PostgreSQL na VPS (`184.107.176.201`) via connection pooler (Supavisor) na porta `6543`.
+- **Compatibilidade Vercel**: 100% compatível com Vercel Serverless Functions (`/api`), sem problemas de desconexão ou *cold start*.
+- **Tabelas do Hub**: `hub_channels`, `hub_products`, `hub_product_channel_links`, `hub_orders`, `hub_activity_logs`.
 
 ---
 
-## 🚀 Como Iniciar o Sistema
+## 🚀 Como Hospedar na Vercel (Passo a Passo)
 
-No terminal da pasta do projeto (`C:\Users\biagg\.gemini\antigravity\scratch\hub-marketplaces`):
+1. Acesse o painel da **[Vercel](https://vercel.com)**.
+2. Clique em **"Add New..."** $\rightarrow$ **"Project"**.
+3. Selecione o repositório **`BiaggioScomparin/smarthub`**.
+4. Em **Environment Variables**, adicione (opcional, já possui fallback para a VPS):
+   - **`DATABASE_URL`**: `postgresql://postgres.your-tenant-id:dcad519bf34b193c9e81461b097fecf4@184.107.176.201:6543/postgres`
+5. Clique em **"Deploy"**!
+
+A Vercel fornecerá um link público com HTTPS automático (ex: `https://smarthub-xxx.vercel.app`).
+Esse link já estará pronto para configurar os **Webhooks** da Shopee, Mercado Livre e TikTok Shop!
+
+---
+
+## 💻 Como Rodar Localmente
 
 ```bash
 deno task start
-```
-ou em modo desenvolvimento (com recarregamento automático):
-```bash
+# ou
 deno task dev
 ```
 
-Abra seu navegador em:
-👉 **`http://localhost:3000`**
+Acesse: **`http://localhost:3000`**
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## 🎯 Funcionalidades Principais
 
-- **Runtime**: Deno 2.x (TypeScript nativo, sem necessidade de build ou Webpack)
-- **Banco de Dados**: SQLite persistente (`hub.db`) em modo WAL de alta performance
-- **Arquitetura de Adapters**:
-  - `src/adapters/mercadolibre.ts`: Integração com a API do Mercado Livre (OAuth 2.0 / `api.mercadolibre.com`)
-  - `src/adapters/shopee.ts`: Integração com Shopee Open Platform v2 (com assinaturas HMAC-SHA256)
-  - `src/adapters/tiktok.ts`: Integração com TikTok Shop Partner API 202309
-- **Frontend**: Single Page Application responsiva com Tailwind CSS, FontAwesome e Dashboard em tempo real.
-
----
-
-## 🔑 Como Obter as Credenciais Oficiais das APIs
-
-### 1. Mercado Livre
-- Crie sua aplicação no portal de desenvolvedores: [Mercado Libre Developers](https://developers.mercadolibre.com.br/).
-- Obtenha o `App ID`, `Client Secret` e gere seu `Access Token`.
-- No hub, acesse **Conexões API** e cole os dados, mudando o modo para **Modo Produção**.
-
-### 2. Shopee
-- Registre-se no portal [Shopee Open Platform](https://open.shopee.com/).
-- Obtenha o `Partner ID` e a `Partner Key`.
-- Autorize a sua loja para gerar o `Shop ID` e o `Access Token`.
-
-### 3. TikTok Shop
-- Acesse o [TikTok Shop Partner Center](https://partner.tiktokshop.com/).
-- Crie um aplicativo de vendedor ou ISV para obter a `App Key`, `App Secret`, `Shop Cipher` e `Access Token`.
+1. **Catálogo Único & Publicação 1-Click (*Multi-Publish*)**:
+   - Cadastre o produto uma única vez (Título, SKU, Preço Base, Estoque, Dimensões e Fotos).
+   - O sistema replica para o Mercado Livre, Shopee e TikTok Shop.
+2. **Sincronização de Estoque em Tempo Real**:
+   - Venda em qualquer canal diminui o estoque no banco central na VPS e sincroniza os outros canais automaticamente.
+3. **Central de Expedição e Envio (*Order & Shipping Hub*)**:
+   - Impressão de etiquetas formatadas com código de barras, declaração de conteúdo e endereço.
+   - Despacho integrado com código de rastreamento.
+4. **Simulador de Vendas Integrado**:
+   - Botão para testar pedidos e ver o fluxo completo funcionando em segundos.

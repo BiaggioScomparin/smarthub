@@ -1,0 +1,17 @@
+{
+  "name": "smarthub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hub de Integração Omnichannel (Mercado Livre, Shopee, TikTok Shop)",
+  "scripts": {
+    "dev": "deno task dev",
+    "start": "deno task start"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/pg": "^8.11.10"
+  }
+}

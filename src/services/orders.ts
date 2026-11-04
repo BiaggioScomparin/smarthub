@@ -16,7 +16,7 @@ export class OrderService {
     shippingAddress: ShippingAddress;
     shippingService?: string;
   }): Promise<Order> {
-    const channel = DB.getChannel(params.channelId);
+    const channel = await DB.getChannel(params.channelId);
     let carrierName = params.shippingService;
     if (!carrierName) {
       if (params.channelId === "mercadolibre") carrierName = "Mercado Envios";
@@ -28,7 +28,7 @@ export class OrderService {
     const prefix = params.channelId === "mercadolibre" ? "BR-MLB" : params.channelId === "shopee" ? "BR-SPX" : "BR-TTS";
     const trackingCode = `${prefix}-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
-    const order = DB.createOrder({
+    const order = await DB.createOrder({
       channel_id: params.channelId,
       remote_order_id: params.remoteOrderId,
       customer_name: params.customerName,
@@ -41,7 +41,7 @@ export class OrderService {
       status: "ready_to_ship"
     });
 
-    DB.logActivity(
+    await DB.logActivity(
       "order_created",
       `Novo pedido #${order.remote_order_id} recebido de ${channel?.name || params.channelId} (R$ ${order.total_amount.toFixed(2)})`,
       params.channelId,
@@ -55,12 +55,12 @@ export class OrderService {
   }
 
   async getPrintableShippingLabel(orderId: string): Promise<ShippingLabelResult> {
-    const order = DB.getOrderById(orderId);
+    const order = await DB.getOrderById(orderId);
     if (!order) {
       throw new Error("Pedido não encontrado");
     }
 
-    const channel = DB.getChannel(order.channel_id);
+    const channel = await DB.getChannel(order.channel_id);
     let adapter;
     if (order.channel_id === "mercadolibre") adapter = new MercadoLibreAdapter(channel!);
     else if (order.channel_id === "shopee") adapter = new ShopeeAdapter(channel!);
@@ -68,7 +68,6 @@ export class OrderService {
 
     const labelInfo = await adapter.getShippingLabel(order.remote_order_id, order);
 
-    // Generate clean printable HTML label document
     const html = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -161,19 +160,19 @@ export class OrderService {
   }
 
   async markOrderAsShipped(orderId: string): Promise<boolean> {
-    const order = DB.getOrderById(orderId);
+    const order = await DB.getOrderById(orderId);
     if (!order) return false;
 
-    const channel = DB.getChannel(order.channel_id);
+    const channel = await DB.getChannel(order.channel_id);
     let adapter;
     if (order.channel_id === "mercadolibre") adapter = new MercadoLibreAdapter(channel!);
     else if (order.channel_id === "shopee") adapter = new ShopeeAdapter(channel!);
     else adapter = new TikTokShopAdapter(channel!);
 
     await adapter.markAsShipped(order.remote_order_id, order.tracking_code || "");
-    DB.updateOrderStatus(orderId, "shipped");
+    await DB.updateOrderStatus(orderId, "shipped");
 
-    DB.logActivity(
+    await DB.logActivity(
       "order_shipped",
       `Pedido #${order.remote_order_id} marcado como despachado no ${channel?.name || order.channel_id}`,
       order.channel_id

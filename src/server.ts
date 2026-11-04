@@ -4,7 +4,7 @@ import { catalogService } from "./services/catalog.ts";
 import { inventoryService } from "./services/inventory.ts";
 import { orderService } from "./services/orders.ts";
 
-const PORT = Number(Deno.env.get("PORT")) || 3000;
+const PORT = Number(typeof Deno !== "undefined" ? Deno.env.get("PORT") : process.env.PORT) || 3000;
 
 function json(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -37,7 +37,7 @@ async function serveStaticFile(filePath: string, contentType: string) {
   }
 }
 
-const publicDir = new URL("./public", import.meta.url).pathname;
+const publicDir = new URL("../public", import.meta.url).pathname;
 const cleanPublicDir = Deno.build.os === "windows" && publicDir.startsWith("/") ? publicDir.slice(1) : publicDir;
 
 Deno.serve({ port: PORT }, async (req: Request) => {
@@ -60,46 +60,47 @@ Deno.serve({ port: PORT }, async (req: Request) => {
   try {
     // API Routes
     if (pathname === "/api/stats" && method === "GET") {
-      const stats = DB.getStats();
+      const stats = await DB.getStats();
       return json(stats);
     }
 
     if (pathname === "/api/logs" && method === "GET") {
-      const logs = DB.getRecentLogs(30);
+      const logs = await DB.getRecentLogs(30);
       return json(logs);
     }
 
     // Channels
     if (pathname === "/api/channels" && method === "GET") {
-      const channels = DB.getChannels();
+      const channels = await DB.getChannels();
       return json(channels);
     }
 
     if (pathname.startsWith("/api/channels/") && method === "POST") {
       const channelId = pathname.replace("/api/channels/", "") as ChannelId;
       const body = await req.json();
-      DB.updateChannel(channelId, body);
-      DB.logActivity("channel_updated", `Configurações do canal ${channelId} atualizadas`, channelId);
-      return json({ success: true, channel: DB.getChannel(channelId) });
+      await DB.updateChannel(channelId, body);
+      await DB.logActivity("channel_updated", `Configurações do canal ${channelId} atualizadas`, channelId);
+      const ch = await DB.getChannel(channelId);
+      return json({ success: true, channel: ch });
     }
 
     // Products
     if (pathname === "/api/products" && method === "GET") {
-      const products = DB.getProducts();
+      const products = await DB.getProducts();
       return json(products);
     }
 
     if (pathname === "/api/products" && method === "POST") {
       const body = await req.json();
-      const product = DB.createProduct(body);
+      const product = await DB.createProduct(body);
 
-      // If publishNow is set, immediately dispatch to all channels!
       let publishResults = null;
       if (body.publishNow) {
         publishResults = await catalogService.publishProductToChannels(product.id, body.channelSettings);
       }
 
-      return json({ success: true, product: DB.getProductById(product.id), publishResults }, 201);
+      const freshProduct = await DB.getProductById(product.id);
+      return json({ success: true, product: freshProduct, publishResults }, 201);
     }
 
     if (pathname.startsWith("/api/products/") && pathname.endsWith("/publish") && method === "POST") {
@@ -107,16 +108,16 @@ Deno.serve({ port: PORT }, async (req: Request) => {
       const productId = parts[3];
       const body = await req.json().catch(() => ({}));
       const results = await catalogService.publishProductToChannels(productId, body.channelSettings);
-      return json({ success: true, results, product: DB.getProductById(productId) });
+      const freshProduct = await DB.getProductById(productId);
+      return json({ success: true, results, product: freshProduct });
     }
 
     if (pathname.startsWith("/api/products/") && method === "PUT") {
       const id = pathname.replace("/api/products/", "");
       const body = await req.json();
-      const updated = DB.updateProduct(id, body);
+      const updated = await DB.updateProduct(id, body);
       if (!updated) return json({ error: "Produto não encontrado" }, 404);
 
-      // If stock changed, propagate to all connected channels
       if (body.stock !== undefined) {
         await inventoryService.syncStockAcrossChannels(updated.sku, updated.stock);
       }
@@ -126,14 +127,14 @@ Deno.serve({ port: PORT }, async (req: Request) => {
 
     if (pathname.startsWith("/api/products/") && method === "DELETE") {
       const id = pathname.replace("/api/products/", "");
-      DB.deleteProduct(id);
+      await DB.deleteProduct(id);
       return json({ success: true });
     }
 
     // Orders
     if (pathname === "/api/orders" && method === "GET") {
       const status = url.searchParams.get("status") || "all";
-      const orders = DB.getOrders(status);
+      const orders = await DB.getOrders(status);
       return json(orders);
     }
 
@@ -151,15 +152,16 @@ Deno.serve({ port: PORT }, async (req: Request) => {
       const parts = pathname.split("/");
       const orderId = parts[3];
       const success = await orderService.markOrderAsShipped(orderId);
-      return json({ success, order: DB.getOrderById(orderId) });
+      const ord = await DB.getOrderById(orderId);
+      return json({ success, order: ord });
     }
 
-    // Simulate incoming order to test multi-channel flow in 1-click
+    // Simulate incoming order
     if (pathname === "/api/orders/simulate" && method === "POST") {
       const body = await req.json();
       const channelId = body.channelId || "mercadolibre";
       const sku = body.sku || "FONE-BT-PRO";
-      const product = DB.getProductBySku(sku);
+      const product = await DB.getProductBySku(sku);
 
       if (!product) {
         return json({ error: `Produto SKU '${sku}' não encontrado` }, 400);
@@ -191,19 +193,19 @@ Deno.serve({ port: PORT }, async (req: Request) => {
         }
       });
 
+      const updatedProduct = await DB.getProductById(product.id);
       return json({
         success: true,
         order,
-        updatedProduct: DB.getProductById(product.id)
+        updatedProduct
       });
     }
 
-    // Webhooks for real channels
+    // Webhooks
     if (pathname.startsWith("/api/webhooks/") && method === "POST") {
       const channelId = pathname.replace("/api/webhooks/", "") as ChannelId;
       const payload = await req.json();
-      DB.logActivity("webhook_received", `Notificação Webhook recebida do canal ${channelId}`, channelId, payload);
-      // Fast acknowledgement
+      await DB.logActivity("webhook_received", `Notificação Webhook recebida do canal ${channelId}`, channelId, payload);
       return json({ received: true });
     }
 

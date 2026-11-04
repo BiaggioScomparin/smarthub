@@ -6,8 +6,10 @@ import { ShopeeAdapter } from "../adapters/shopee.ts";
 import { TikTokShopAdapter } from "../adapters/tiktok.ts";
 
 export class CatalogService {
-  private getAdapter(channelId: ChannelId): MarketplaceAdapter {
-    const config = DB.getChannel(channelId)!;
+  private async getAdapter(channelId: ChannelId): Promise<MarketplaceAdapter> {
+    const config = await DB.getChannel(channelId);
+    if (!config) throw new Error(`Canal não configurado: ${channelId}`);
+
     switch (channelId) {
       case "mercadolibre":
         return new MercadoLibreAdapter(config);
@@ -24,12 +26,12 @@ export class CatalogService {
     productId: string,
     channelSettings?: Record<ChannelId, { enabled: boolean; customPrice?: number; categoryId?: string }>
   ): Promise<PublishResult[]> {
-    const product = DB.getProductById(productId);
+    const product = await DB.getProductById(productId);
     if (!product) {
       throw new Error(`Produto não encontrado: ${productId}`);
     }
 
-    const channels = DB.getChannels().filter(c => c.enabled);
+    const channels = (await DB.getChannels()).filter(c => c.enabled);
     const results: PublishResult[] = [];
 
     for (const channel of channels) {
@@ -40,7 +42,7 @@ export class CatalogService {
         continue;
       }
 
-      const adapter = this.getAdapter(channelId);
+      const adapter = await this.getAdapter(channelId);
       const customPrice = setting?.customPrice || product.base_price;
       const categoryId = setting?.categoryId;
 
@@ -49,7 +51,7 @@ export class CatalogService {
         results.push(result);
 
         if (result.success && result.remote_id) {
-          DB.saveChannelLink({
+          await DB.saveChannelLink({
             product_id: product.id,
             channel_id: channelId,
             remote_product_id: result.remote_id,
@@ -59,21 +61,21 @@ export class CatalogService {
             published_at: new Date().toISOString()
           });
 
-          DB.logActivity(
+          await DB.logActivity(
             "publish_success",
             `Produto '${product.title}' (${product.sku}) publicado no ${adapter.name}`,
             channelId,
             { remote_id: result.remote_id }
           );
         } else {
-          DB.saveChannelLink({
+          await DB.saveChannelLink({
             product_id: product.id,
             channel_id: channelId,
             status: "error",
             last_error: result.message
           });
 
-          DB.logActivity(
+          await DB.logActivity(
             "publish_error",
             `Falha ao publicar '${product.title}' no ${adapter.name}: ${result.message}`,
             channelId
@@ -86,7 +88,7 @@ export class CatalogService {
           message: err.message
         });
 
-        DB.saveChannelLink({
+        await DB.saveChannelLink({
           product_id: product.id,
           channel_id: channelId,
           status: "error",
