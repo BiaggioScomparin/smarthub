@@ -1,10 +1,9 @@
 {
   "name": "smarthub",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
-  "description": "Hub de Integração Omnichannel (Mercado Livre, Shopee, TikTok Shop)",
   "scripts": {
-    "build": "node -e \"console.log('Build OK')\"",
     "dev": "deno task dev",
     "start": "deno task start"
   },
