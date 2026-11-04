@@ -1,0 +1,19 @@
+# Database files
+hub.db
+hub.db-wal
+hub.db-shm
+*.sqlite
+*.db
+
+# Environment variables
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
