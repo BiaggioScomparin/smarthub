@@ -1,10 +1,12 @@
-import pg from "pg";
+import pgPkg from "pg";
 import type { ChannelConfig, ChannelId, Order, Product, ProductChannelLink } from "./types.ts";
+
+const Pool = (pgPkg as any).Pool || ((pgPkg as any).default && (pgPkg as any).default.Pool);
 
 const DEFAULT_DATABASE_URL = "postgresql://postgres.your-tenant-id:dcad519bf34b193c9e81461b097fecf4@184.107.176.201:6543/postgres";
 const DATABASE_URL = (typeof Deno !== "undefined" ? Deno.env.get("DATABASE_URL") : process.env.DATABASE_URL) || DEFAULT_DATABASE_URL;
 
-export const pool = new pg.Pool({
+export const pool = new Pool({
   connectionString: DATABASE_URL,
   max: 10,
   idleTimeoutMillis: 30000,

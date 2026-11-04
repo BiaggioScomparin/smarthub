@@ -37,9 +37,10 @@ var import_node_path = __toESM(require("node:path"));
 
 // src/db.ts
 var import_pg = __toESM(require("pg"));
+var Pool = import_pg.default.Pool || import_pg.default.default && import_pg.default.default.Pool;
 var DEFAULT_DATABASE_URL = "postgresql://postgres.your-tenant-id:dcad519bf34b193c9e81461b097fecf4@184.107.176.201:6543/postgres";
 var DATABASE_URL = (typeof Deno !== "undefined" ? Deno.env.get("DATABASE_URL") : process.env.DATABASE_URL) || DEFAULT_DATABASE_URL;
-var pool = new import_pg.default.Pool({
+var pool = new Pool({
   connectionString: DATABASE_URL,
   max: 10,
   idleTimeoutMillis: 3e4,
