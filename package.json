@@ -4,8 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "deno task dev",
-    "start": "deno task start"
+    "start": "node server.cjs"
   },
   "dependencies": {
     "pg": "^8.13.1"
